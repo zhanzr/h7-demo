@@ -19,19 +19,8 @@ and each run exceeds the 2 s `Too_Small_Time` gate (measured ~4.6 s).
 
 > ⚠ **Do not use LTO for Dhrystone.** GCC `-flto` sees the whole program and
 > hoists loop-invariant work out of the timed loop, inflating the score. The
-> LTO number is meaningless and is **excluded from the table above** (same
-> artifact documented on the h750/F407 ports).
-
-### vs. the h750-mini reference (@ 480 MHz, same flags, GCC)
-
-| Board / chip | Freq    | Dhrystones/s | DMIPS/MHz |
-| ------------ | ------- | ------------ | --------- |
-| H750 mini    | 480 MHz | 2,296,651    | 2.723     |
-| H723 mini    | 550 MHz | 2,631,579    | 2.723     |
-
-The H723 scores 1.146× the Dhrystones/s — purely from the 550/480 MHz clock
-(550/480 = 1.146), with the same 2.723 DMIPS/MHz, as expected for the same M7
-core, compiler and flags.
+> LTO number is meaningless and is **excluded from the table above** (a known
+> GCC artifact, not a real measurement).
 
 ## Build
 
@@ -58,7 +47,7 @@ ninja
 ninja flash        # probe-rs through the ST-Link V2 (SWD)
 ```
 
-Open the USART1 console (`COM46` @ 115200 via the ST-Link V2 VCP). The console
+Open the USART1 console (`COMxx` @ 115200 via the ST-Link V2 VCP). The console
 prints the Dhrystones/s and DMIPS/MHz lines every ~4.5 s; capture a few seconds
 longer than one full run to get a clean result line.
 
@@ -68,11 +57,10 @@ longer than one full run to get a clean result line.
   it the SysTick (enabled by `HAL_Init`) jumps into the startup weak handler
   (an infinite `b .` loop) the moment the first tick fires, so the firmware
   hangs with no output.
-* **RUN_NUMBER**: kept at 12,000,000 (same as the h750 480 MHz port) — at
-  550 MHz a run takes ~4.5 s, comfortably above the 2 s `Too_Small_Time` gate.
+* **RUN_NUMBER**: kept at 12,000,000 — at 550 MHz a run takes ~4.5 s,
+  comfortably above the 2 s `Too_Small_Time` gate.
 * **Do not use LTO for Dhrystone**: GCC `-flto` hoists loop-invariant work out
-  of the timed loop and inflates the score (documented on the h750 port).
+  of the timed loop and inflates the score (a known GCC artifact).
 * Clock config: copied from the vendor `1.LED闪烁` 550 MHz example (the working
   reference build) including the 4 GB MPU region.
-* Console: USART1 (PA9/PA10, AF7) on COM3. The ULINK2 cannot capture SWO, so
-  UART is the console.
+* Console: USART1 (PA9/PA10, AF7) via the ST-Link V2 VCP (`COMxx` @ 115200).

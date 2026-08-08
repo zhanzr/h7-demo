@@ -15,11 +15,21 @@
 # Prerequisite (one-time per board): h723_boot must be in internal flash.
 #
 # Overrides:
-#   -DPROBE_RS=/path/to/probe-rs    -DDEBUG_PROBE=0483:3752:0672FF555054877567101040
+#   -DPROBE_RS=/path/to/probe-rs    -DDEBUG_PROBE=<probe selector>
 #   -DPYTHON=/path/to/python        -DQSPI_ALGO_PAGE_SIZE=0x4000
+#
+# DEBUG_PROBE is optional: empty (default) makes probe-rs auto-detect the
+# connected probe. To pin a specific probe, view its selector with `probe-rs
+# list` (e.g. 0483:374b:xxxx... for an ST-Link V2) and pass -DDEBUG_PROBE=...
+set(DEBUG_PROBE "" CACHE STRING
+    "probe-rs --probe selector (VID:PID[:Serial], e.g. 0483:374b:xxxx...); empty = auto-detect")
 
-set(DEBUG_PROBE "0483:3752:0672FF555054877567101040" CACHE STRING
-    "probe-rs --probe selector (ST-Link V2 serial on this PC)")
+# When DEBUG_PROBE is empty, omit --probe so probe-rs auto-detects the probe.
+if(DEBUG_PROBE)
+    set(PROBE_ARGS --probe "${DEBUG_PROBE}")
+else()
+    set(PROBE_ARGS)
+endif()
 set(QSPI_ALGO_PAGE_SIZE "0x4000" CACHE STRING
     "probe-rs page_size in the algorithm YAML (bytes per ProgramPage call)")
 
@@ -56,13 +66,13 @@ if(PROBE_RS AND PYTHON)
         COMMAND ${CMAKE_COMMAND} -E echo "${WARN}Make sure h723_boot is in internal flash first (one-time per board)!${NORM}"
         COMMAND ${CMAKE_COMMAND} -E echo
                 "Writing ${PROJECT_NAME}.hex to the W25Q64 via the OCTOSPI algorithm ..."
-        COMMAND "${PROBE_RS}" download --probe "${DEBUG_PROBE}"
+        COMMAND "${PROBE_RS}" download ${PROBE_ARGS}
                     --chip-description-path "${QSPI_ALGO_YAML}"
                     --chip "STM32H723ZG-W25Q64-w25q64_ospi" --protocol swd
                     --connect-under-reset
                     --binary-format hex --non-interactive --disable-progressbars
                     "${BIN_HEX}"
-        COMMAND "${PROBE_RS}" reset --probe "${DEBUG_PROBE}"
+        COMMAND "${PROBE_RS}" reset ${PROBE_ARGS}
                     --chip "STM32H723ZG" --protocol swd
                     --connect-under-reset --non-interactive
         COMMAND ${CMAKE_COMMAND} -E echo ""

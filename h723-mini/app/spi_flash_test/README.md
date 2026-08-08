@@ -3,12 +3,12 @@
 W25Q64 (8 Mbyte) **OCTOSPI** flash benchmark + XIP demo for the h723-mini board
 (STM32H723ZGT6 @ 550 MHz, W25Q64 on OCTOSPI1 port 1).
 
-Ported from the h750-mini `spi_flash_test` (which used QUADSPI) to the H723's
-OCTOSPI HAL. Pins (vendor `6.OSPI` example): PF8 IO0 / PF9 IO1 / PF7 IO2 /
+The driver uses the OCTOSPI HAL (this board's W25Q64 hangs on OCTOSPI1, not a
+QUADSPI). Pins (vendor `6.OSPI` example): PF8 IO0 / PF9 IO1 / PF7 IO2 /
 PF6 IO3 / PF10 CLK / PG6 NCS. OSPI kernel clock = D1HCLK (275 MHz) with
 ClockPrescaler 2 → **137.5 MHz**.
 
-Measures, printed over USART1 @ 115200 (`COM46`), re-run every second:
+Measures, printed over USART1 @ 115200 (`COMxx`), re-run every second:
 
 - **erase** (line-mode independent, always 1-1-1): 4K sector / 32K block / 64K block
 - **write** (page program): 1-1-1 (0x02) vs 1-1-4 (0x32)  (W25Q64 has **no**
@@ -38,7 +38,7 @@ Every read/write is checksum-verified against the source pattern, so a
 | read 256K, memmap 1-4-4| 65.56 MiB/s                        |
 | XIP execute            | OK (correct result)                |
 
-Notes (same behaviour as the h750 port):
+Notes:
 
 - **Write speed is identical for 1-1-1 and 1-1-4** — page program is dominated
   by the flash's internal program time (~0.4 ms/page), not the wire transfer.
@@ -46,9 +46,8 @@ Notes (same behaviour as the h750 port):
   byte), so all 5 modes measure ~11.9 MiB/s. Use memory-mapped mode for real
   throughput.
 - **Memory-mapped reads scale exactly with line count** (16.4 / 32.8 / 65.6
-  MiB/s for 1x / 2x / 4x), with the D-cache enabled (`mpu_ospi_config`). The
-  4-line numbers are ~1.38x the h750 (47.7 MiB/s @ 100 MHz) purely from the
-  137.5 MHz OSPI clock.
+  MiB/s for 1x / 2x / 4x), with the D-cache enabled (`mpu_ospi_config`), up to
+  the 65.6 MiB/s ceiling of the 137.5 MHz OSPI clock at 4 data lines.
 
 ## Build + flash
 
@@ -63,9 +62,9 @@ ninja flash                   # probe-rs, STM32H723ZG (image is < 1 MB)
 - **OSPI clock = 137.5 MHz** (D1HCLK 275 MHz, prescaler 2 — the vendor
   `6.OSPI` default; the W25Q64JV is rated 133 MHz, but this config is stable
   on the vendor board).
-- **Quad Enable (QE) is set during init** (same WP# trick as the h750 port:
-  drive IO2/PF7 high as a GPIO while writing SR2, try `0x31` then fall back to
-  `0x01`). Idempotent: skips if SR2.QE is already 1.
+- **Quad Enable (QE) is set during init** (WP# trick: drive IO2/PF7 high as a
+  GPIO while writing SR2, try `0x31` then fall back to `0x01`). Idempotent:
+  skips if SR2.QE is already 1.
 - **Continuous-read mode is exited explicitly** via `0xF0` alternate bytes for
   the 1-2-2 / 1-4-4 I/O reads.
 - **Memory-mapped exit uses `HAL_OSPI_Abort`**: leaving FMODE = memory-mapped
@@ -81,8 +80,7 @@ ninja flash                   # probe-rs, STM32H723ZG (image is < 1 MB)
 
 The vendor example never sets SR2.QE (its 0xEB/0x32 quad commands only work if
 the flash was pre-programmed with QE=1), has no memory-mapped exit path, and
-returns bare error codes. This driver fixes those, same as the h750 port did
-for QUADSPI.
+returns bare error codes. This driver fixes those.
 
 ## XIP / code-in-mapped-space
 

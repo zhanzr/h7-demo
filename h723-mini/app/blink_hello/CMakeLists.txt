@@ -1,6 +1,6 @@
 # blink_hello: minimal STM32H723ZGT6 (h723-mini) template @ 550 MHz.
 # Blinks the on-board LED on PG7 (low active) and prints a line over USART1
-# (COM3 @ 115200) on every toggle. Intended as the starting point
+# (COMxx @ 115200) on every toggle. Intended as the starting point
 # for new h723-mini projects: clock, MPU, caches, UART console, SysTick and
 # the newlib stubs all come from the shared board layer (../board + ../cmake).
 #
@@ -9,7 +9,7 @@
 #   mkdir -p build-ac6 && cd build-ac6      # optional: Keil AC6 (armclang)
 #   cmake -G Ninja -DSTM32_TOOLCHAIN=armclang ..
 #   ninja           # builds .elf + .hex (hex is what `ninja flash` uses)
-#   ninja flash     # programs the board (probe-rs, ULINK2 CMSIS-DAP / SWD)
+#   ninja flash     # programs the board (probe-rs, ST-Link V2 / SWD)
 #   ninja bin       # optional raw .bin image, "in case" you need it
 
 cmake_minimum_required(VERSION 3.13)

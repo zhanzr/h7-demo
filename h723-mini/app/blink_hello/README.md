@@ -1,7 +1,7 @@
 # blink_hello — minimal STM32H723ZGT6 (h723-mini) template @ 550 MHz
 
 Tiny project template: blinks the on-board **PG7 LED (low active)** and prints
-a line over USART1 (`COM46` @ 115200 via the ST-Link V2's VCP) on **every
+a line over USART1 (`COMxx` @ 115200 via the ST-Link V2's VCP) on **every
 toggle** (~1 Hz). Everything else — 550 MHz clock init, MPU, I/D caches, UART
 console, SysTick, newlib stubs, startup + linker script — comes from the
 **shared board layer** (`../board`) and toolchain helpers (`../cmake`), so a
@@ -31,6 +31,6 @@ ninja flash        # probe-rs through the ST-Link V2 (SWD) - works
 ninja dfu-flash    # USB DFU via STM32CubeProgrammer (BOOT0=1 + reset first)
 ```
 
-Open `COM46` at 115200 8-N-1 (ST-Link V2 VCP) — you should see one
+Open `COMxx` at 115200 8-N-1 (ST-Link V2 VCP) — you should see one
 `LED PG7: ON/OFF ...` line per second, alternating, and the physical LED
 blinking in sync.

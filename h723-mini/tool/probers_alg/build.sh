@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the STM32H750 (h750-mini) HSE test with CMake + Ninja.
+# Build the STM32H723ZG (h723-mini) algorithm harness with CMake + Ninja.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

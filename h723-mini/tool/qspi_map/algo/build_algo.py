@@ -6,7 +6,7 @@ arm-none-eabi-gcc, extracts the code blob + entry-point offsets, and writes
 target_w25q64.yaml for use with:
 
   probe-rs download --chip-description-path target_w25q64.yaml \
-      --chip STM32H750VB-W25Q64 --binary-format hex app.hex
+      --chip STM32H723ZG-W25Q64 --binary-format hex app.hex
 """
 import base64
 import subprocess

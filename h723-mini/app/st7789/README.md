@@ -18,14 +18,13 @@ SysTick/startup all come from the shared board layer (`../board`, `../cmake`).
 An **FPS number is always shown at the bottom of the screen**, drawn
 transparently (glyph pixels only). The bottom 24 rows are a reserved status
 band so the counter survives the animation clears. Progress lines (phase
-names, LED on/off) are also printed over USART1 (`COM46` @ 115200 via the
+names, LED on/off) are also printed over USART1 (`COMxx` @ 115200 via the
 ST-Link V2's VCP).
 
 The **backlight is a TIM23_CH1 PWM on PG12** (AF13), brightness set with
-`lcd_bl_bright_set(duty)` (0..65535) — same scheme as the h750-mini port
-(which used TIM4_CH4 on PD15). The vendor example drove PG12 as a plain GPIO,
-but the pin is wired to TIM23_CH1, so PWM dimming works. On boot it goes full
-brightness for 200 ms, then settles at duty 11000 (~17 %).
+`lcd_bl_bright_set(duty)` (0..65535). The vendor example drove PG12 as a plain
+GPIO, but the pin is wired to TIM23_CH1, so PWM dimming works. On boot it goes
+full brightness for 200 ms, then settles at duty 11000 (~17 %).
 
 ## Build
 
@@ -48,4 +47,4 @@ ninja flash        # probe-rs through the ST-Link V2 (SWD)
 ```
 
 Watch the demo phases on the panel and the phase lines on the serial console
-(`COM46` @ 115200).
+(`COMxx` @ 115200).

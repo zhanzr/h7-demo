@@ -10,4 +10,4 @@ bash build.sh                        # -> build/hse_test.hex
 cd build && ninja flash              # probe-rs -> internal flash (ST-Link V2)
 ```
 
-Console (`COM46`, 115200): `HSE: READY - crystal OK` or `HSE: FAIL - HSERDY never set`.
+Console (`COMxx`, 115200): `HSE: READY - crystal OK` or `HSE: FAIL - HSERDY never set`.

@@ -1,7 +1,7 @@
 /* qspi_map bootloader linker script (internal flash, 1 MB default).
  *
- * Same layout as the shared stm32h750vbt.ld. The bootloader runs entirely from
- * internal flash, initializes the QUADSPI + W25Q64, and jumps to the stage-2
+ * Same layout as the shared stm32h723zg.ld. The bootloader runs entirely from
+ * internal flash, initializes the OCTOSPI + W25Q64, and jumps to the stage-2
  * app at 0x90000000.
  */
 

@@ -3,7 +3,7 @@
 #
 # armclang is the LLVM/clang-based compiler shipped with Keil MDK
 # (D:/Keil_v5/ARM/ARMCLANG/bin). We still link with GNU ld so the existing
-# linker script (stm32h750vbt.ld), newlib-based syscalls.c and the ST startup
+# linker script (stm32h723zg.ld), newlib-based syscalls.c and the ST startup
 # file all keep working, and probe-rs flashing stays identical.
 #
 # Selection (project CMakeLists):
@@ -71,6 +71,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM BOTH)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
-# Tells cmake/stm32h750_board.cmake to apply armclang-specific tweaks
+# Tells cmake/stm32h723_board.cmake to apply armclang-specific tweaks
 # (newlib include path, clang-compatible warning flags).
 set(STM32_ARMCLANG TRUE)

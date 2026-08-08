@@ -101,15 +101,24 @@ add_custom_target(app_bin DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/app.bin)
 # ---------------------------------------------------------------------------
 # Flashing
 # ---------------------------------------------------------------------------
-set(DEBUG_PROBE "0483:3752:0672FF555054877567101040" CACHE STRING
-    "probe-rs --probe selector (ST-Link V2 serial on this PC)")
+# DEBUG_PROBE is optional: empty (default) makes probe-rs auto-detect the
+# connected probe. To pin a specific probe, view its selector with `probe-rs
+# list` (e.g. 0483:374b:xxxx... for an ST-Link V2) and pass -DDEBUG_PROBE=...
+set(DEBUG_PROBE "" CACHE STRING
+    "probe-rs --probe selector (VID:PID[:Serial], e.g. 0483:374b:xxxx...); empty = auto-detect")
+
+if(DEBUG_PROBE)
+    set(PROBE_ARGS --probe "${DEBUG_PROBE}")
+else()
+    set(PROBE_ARGS)
+endif()
 
 find_program(PROBE_RS NAMES probe-rs probe-rs.exe
     HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin")
 
 if(PROBE_RS)
     add_custom_target(flash_boot
-        COMMAND "${PROBE_RS}" download --probe "${DEBUG_PROBE}"
+        COMMAND "${PROBE_RS}" download ${PROBE_ARGS}
                     --chip "STM32H723ZG" --protocol swd
                     --connect-under-reset
                     --binary-format hex --verify --reset --non-interactive

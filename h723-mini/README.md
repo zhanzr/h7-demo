@@ -2,7 +2,9 @@
 
 Firmware projects for the h723-mini board (STM32H723ZGT6 @ 550 MHz, USART1
 console on PA9/PA10, LED on PG7 low-active, 1.54" 240x240 ST7789 LCD, ST-Link
-V2 SWD probe). Ported from the h750-mini layout in `D:\stm32h750_prj\h750-mini`.
+V2 SWD probe).
+
+![h723-mini board](board.jpg)
 
 ## Board (hardware)
 
@@ -10,11 +12,11 @@ V2 SWD probe). Ported from the h750-mini layout in `D:\stm32h750_prj\h750-mini`.
 * HSE: 25 MHz external crystal.
 * LED: **PG7, low active** (`GPIO_PIN_RESET` = ON).
 * USART1 console: PA9 (TX) / PA10 (RX), AF7, 115200 8-N-1.
-* LCD: 1.54" ST7789 240x240 (SPI6 on PG13/PG14/PG15, PG12 backlight) — not
-  used by these projects yet.
-* Debug probe: **ST-Link V2 (SWD)** — the Keil ULINK2 (CMSIS-DAP v1) cannot
-  access this H723's debug bus (DP reads, but every AP/core transaction fails;
-  verified with Keil, probe-rs and OpenOCD), so don't use the ULINK2 here.
+* LCD: 1.54" ST7789 240x240 (SPI6 on PG13/PG14/PG15, PG12 backlight).
+* W25Q64 (8 MB) SPI flash on OCTOSPI1 port 1 (PF6-10, PG6).
+* Debug probe: **ST-Link V2 (SWD)** — the ULINK2 unit on hand did not work on
+  this board (a local observation, not a rigid test), so the ST-Link V2 is
+  used for flashing and its VCP is the console.
 
 ## Clock tree (550 MHz)
 
@@ -31,9 +33,9 @@ the 25 MHz crystal and is not used by these builds.
 
 ## Projects
 
-The tree mirrors h750-mini: `app/` (embedded-flash applications), `board/`
-(shared board layer), `cmake/` (toolchain/board helpers), `drivers/` (the
-STM32H7 HAL + CMSIS pulled from the vendor example projects).
+The tree: `app/` (embedded-flash applications), `board/` (shared board layer),
+`cmake/` (toolchain/board helpers), `drivers/` (the STM32H7 HAL + CMSIS pulled
+from the vendor example projects).
 
 **`app/` (embedded flash):**
 | Project          | What it is                                    |
@@ -60,22 +62,17 @@ STM32H7 HAL + CMSIS pulled from the vendor example projects).
 | `qspi_map`   | Two-stage boot + app + the probe-rs OCTOSPI flash algorithm |
 | `probers_alg`| Harness: runs the OCTOSPI algorithm's register code as firmware |
 
-Measured on this board (GCC 15.3.1, hard-float, I/D caches on, USART console):
-
-| Benchmark          | Result                                  |
-| ------------------ | --------------------------------------- |
-| Dhrystone 2.1      | 2,631,579 D/s → **2.723 DMIPS/MHz**     |
-| CoreMark 1.0       | **2372.59** (25,000 iters, ~10.5 s)     |
-
-(550/480 MHz clock-scaled 1.146× from the h750-mini numbers, as expected.)
+Benchmark results (measured on this board, GCC 15.3.1, hard-float, I/D caches
+on) live in the project READMEs — `app/dhry_550m/README.md` and
+`app/coremark_550m/README.md`. A helper to flash + capture the console for a
+benchmark run is in `../tools/bench_capture.sh`.
 
 Verified on hardware:
 
 * `st7789` drives the on-board 1.54" panel over SPI6 (PG8/13/14, 68.75 MHz SCK,
   DC PG15 — vendor `1.54寸240x240分辨率` pinout) with a **TIM23_CH1 PWM
-  backlight on PG12** (`lcd_bl_bright_set`, h750-style brightness control), and
-  loops shapes → pure colors → gradient → LED test with an on-screen FPS
-  counter.
+  backlight on PG12** (`lcd_bl_bright_set`), and loops shapes → pure colors →
+  gradient → LED test with an on-screen FPS counter.
 * `hse_test` reports `HSE: READY - crystal OK` (the 25 MHz HSE locks).
 * `spi_flash_test` drives the on-board W25Q64 (8 MB) over OCTOSPI1 port 1
   (PF6-10, PG6, 137.5 MHz) — erase/write/read throughput in every line mode,
@@ -98,7 +95,7 @@ auto-start, wait for TCF).
 
 The HAL/CMSIS under `drivers/` was copied from the vendor project
 `board_database\main-stm32h723-mini\vendor_projects\1.LED闪烁` (CubeMX
-STM32Cube FW_H7) — the three projects only exercise the RCC/GPIO/FLASH/PWR/
+STM32Cube FW_H7) — the projects only exercise the RCC/GPIO/FLASH/PWR/
 CORTEX/HSEM/UART HAL modules.
 
 ## Build & flash
@@ -115,11 +112,12 @@ ninja flash        # probe-rs download --chip STM32H723ZG via ST-Link V2 (SWD)
 ninja dfu-flash    # USB DFU via STM32CubeProgrammer (needs BOOT0=1 + reset)
 ```
 
-Then open the USART1 console at 115200 8-N-1 (on this PC: the ST-Link V2's
-virtual COM port `COM46`, or the board's own USB-serial bridge).
+Then open the USART1 console at 115200 8-N-1 (the ST-Link V2's virtual COM
+port — `COMxx`, the number varies per machine).
 
-> The `flash-targets.cmake` default probe selector
-> `0483:3752:0672FF555054877567101040` is the ST-Link V2 serial on this PC;
-> override with `-DDEBUG_PROBE=...` if it differs. The Keil ULINK2 cannot flash
-> this board (CMSIS-DAP v1 cannot access the H723 core); use the ST-Link V2 or
-> DFU.
+> `ninja flash` auto-detects the connected probe (a single ST-Link V2). To pin
+> a specific probe, view its selector with `probe-rs list` (e.g.
+> `0483:374b:xxxx...` for an ST-Link V2 — every unit has its own serial) and
+> pass `-DDEBUG_PROBE=<selector>` at configure time. The ULINK2 unit on hand
+> does not flash this board (a local observation, not a rigid test); use the
+> ST-Link V2 or DFU.

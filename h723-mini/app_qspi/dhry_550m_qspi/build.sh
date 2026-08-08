@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the STM32H750VBTx blink_hello template with CMake + Ninja.
+# Build the STM32H723ZGTx (h723-mini) template with CMake + Ninja.
 # Run with:  bash build.sh    (or ./build.sh on Linux)
 set -euo pipefail
 

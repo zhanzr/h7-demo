@@ -11,7 +11,7 @@
 #   mkdir -p build-ac6 && cd build-ac6      # optional: Keil AC6 (armclang)
 #   cmake -G Ninja -DSTM32_TOOLCHAIN=armclang ..
 #   ninja           # builds .elf + .hex (hex is what `ninja flash` uses)
-#   ninja flash     # programs the board (probe-rs, ULINK2 CMSIS-DAP / SWD)
+#   ninja flash     # programs the board (probe-rs, ST-Link V2 / SWD)
 #   ninja bin       # optional raw .bin image, "in case" you need it
 
 cmake_minimum_required(VERSION 3.13)

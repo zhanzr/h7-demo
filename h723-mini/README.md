@@ -41,6 +41,9 @@ STM32H7 HAL + CMSIS pulled from the vendor example projects).
 | `blink_hello`    | LED blink (PG7) + UART (reference template)   |
 | `dhry_550m`      | Dhrystone 2.1 benchmark @ 550 MHz             |
 | `coremark_550m`  | CoreMark 1.0 @ 550 MHz                        |
+| `st7789`         | 1.54" 240x240 ST7789 LCD demo (SPI6)          |
+| `hse_test`       | HSE crystal check (boots on HSI 64 MHz)       |
+| `spi_flash_test` | W25Q64 OCTOSPI flash benchmark + XIP demo     |
 
 Measured on this board (GCC 15.3.1, hard-float, I/D caches on, USART console):
 
@@ -50,6 +53,19 @@ Measured on this board (GCC 15.3.1, hard-float, I/D caches on, USART console):
 | CoreMark 1.0       | **2372.59** (25,000 iters, ~10.5 s)     |
 
 (550/480 MHz clock-scaled 1.146× from the h750-mini numbers, as expected.)
+
+Verified on hardware:
+
+* `st7789` drives the on-board 1.54" panel over SPI6 (PG8/13/14, 68.75 MHz SCK,
+  DC PG15 — vendor `1.54寸240x240分辨率` pinout) with a **TIM23_CH1 PWM
+  backlight on PG12** (`lcd_bl_bright_set`, h750-style brightness control), and
+  loops shapes → pure colors → gradient → LED test with an on-screen FPS
+  counter.
+* `hse_test` reports `HSE: READY - crystal OK` (the 25 MHz HSE locks).
+* `spi_flash_test` drives the on-board W25Q64 (8 MB) over OCTOSPI1 port 1
+  (PF6-10, PG6, 137.5 MHz) — erase/write/read throughput in every line mode,
+  memory-mapped reads up to **65.6 MiB/s** (1-4-4), and an **XIP** demo that
+  executes code from `0x90000000` (all checksums OK).
 
 The HAL/CMSIS under `drivers/` was copied from the vendor project
 `board_database\main-stm32h723-mini\vendor_projects\1.LED闪烁` (CubeMX

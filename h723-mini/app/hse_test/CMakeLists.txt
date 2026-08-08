@@ -1,0 +1,40 @@
+# hse_test: HSE-crystal feasibility check for the h723-mini (STM32H723ZGT6).
+#
+# Boots from the internal HSI (64 MHz) so it works even if the external 25 MHz
+# HSE is dead, then enables HSE with a bounded wait and reports READY/FAIL.
+#
+# Targets:
+#   ninja        - builds hse_test.elf + hse_test.hex (internal flash)
+#   ninja flash  - probe-rs -> internal flash (STM32H723ZG)
+
+cmake_minimum_required(VERSION 3.13)
+
+if(POLICY CMP0123)
+    cmake_policy(SET CMP0123 NEW)
+endif()
+
+set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default) or armclang (Keil AC6)")
+set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang)
+option(STM32_LTO "Enable -flto with the GCC toolchain" OFF)
+
+if(NOT CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
+endif()
+
+project(hse_test C ASM)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/stm32h723_board.cmake)
+
+# The board layer's stock system init is used, but main() deliberately does NOT
+# call the HSE-based SystemClock_Config() - it runs on the reset-default HSI.
+
+add_executable(${PROJECT_NAME}.elf
+    src/main.c
+)
+stm32h723_apply_board(${PROJECT_NAME}.elf "-O2")
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/objcopy-targets.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/flash-targets.cmake)

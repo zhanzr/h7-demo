@@ -1,0 +1,80 @@
+# h723-mini — STM32H723ZGT6 development projects
+
+Firmware projects for the h723-mini board (STM32H723ZGT6 @ 550 MHz, USART1
+console on PA9/PA10, LED on PG7 low-active, 1.54" 240x240 ST7789 LCD, ST-Link
+V2 SWD probe). Ported from the h750-mini layout in `D:\stm32h750_prj\h750-mini`.
+
+## Board (hardware)
+
+* MCU: STM32H723ZGT6 (LQFP144, 1 MB flash, 550 MHz max).
+* HSE: 25 MHz external crystal.
+* LED: **PG7, low active** (`GPIO_PIN_RESET` = ON).
+* USART1 console: PA9 (TX) / PA10 (RX), AF7, 115200 8-N-1.
+* LCD: 1.54" ST7789 240x240 (SPI6 on PG13/PG14/PG15, PG12 backlight) — not
+  used by these projects yet.
+* Debug probe: **ST-Link V2 (SWD)** — the Keil ULINK2 (CMSIS-DAP v1) cannot
+  access this H723's debug bus (DP reads, but every AP/core transaction fails;
+  verified with Keil, probe-rs and OpenOCD), so don't use the ULINK2 here.
+
+## Clock tree (550 MHz)
+
+```
+HSE 25 MHz → PLL1 (M=10, N=220, P=1) → SYSCLK 550 MHz
+  AHB /2  → HCLK 275 MHz
+  APB1/2/3/4 /2 → 137.5 MHz
+  VOS scale 0 (1.35 V), flash latency 3
+```
+
+Copied verbatim from the vendor `1.LED闪烁` 550 MHz example. The board's own
+`cubemx_file/cubemx_file.ioc` (16 MHz-HSE based PLL values) does NOT match
+the 25 MHz crystal and is not used by these builds.
+
+## Projects
+
+The tree mirrors h750-mini: `app/` (embedded-flash applications), `board/`
+(shared board layer), `cmake/` (toolchain/board helpers), `drivers/` (the
+STM32H7 HAL + CMSIS pulled from the vendor example projects).
+
+**`app/` (embedded flash):**
+| Project          | What it is                                    |
+| ---------------- | --------------------------------------------- |
+| `blink_hello`    | LED blink (PG7) + UART (reference template)   |
+| `dhry_550m`      | Dhrystone 2.1 benchmark @ 550 MHz             |
+| `coremark_550m`  | CoreMark 1.0 @ 550 MHz                        |
+
+Measured on this board (GCC 15.3.1, hard-float, I/D caches on, USART console):
+
+| Benchmark          | Result                                  |
+| ------------------ | --------------------------------------- |
+| Dhrystone 2.1      | 2,631,579 D/s → **2.723 DMIPS/MHz**     |
+| CoreMark 1.0       | **2372.59** (25,000 iters, ~10.5 s)     |
+
+(550/480 MHz clock-scaled 1.146× from the h750-mini numbers, as expected.)
+
+The HAL/CMSIS under `drivers/` was copied from the vendor project
+`board_database\main-stm32h723-mini\vendor_projects\1.LED闪烁` (CubeMX
+STM32Cube FW_H7) — the three projects only exercise the RCC/GPIO/FLASH/PWR/
+CORTEX/HSEM/UART HAL modules.
+
+## Build & flash
+
+Each project has `build.sh` (GNU arm-none-eabi-gcc, the default) and supports
+a separate `build-ac6/` dir for Keil AC6 (armclang). The build outputs the
+`.elf` + `.hex`; `ninja flash` programs the board via probe-rs + the ST-Link
+V2, and `ninja dfu-flash` via USB DFU (fallback):
+
+```bash
+cd app/blink_hello
+bash build.sh
+ninja flash        # probe-rs download --chip STM32H723ZG via ST-Link V2 (SWD)
+ninja dfu-flash    # USB DFU via STM32CubeProgrammer (needs BOOT0=1 + reset)
+```
+
+Then open the USART1 console at 115200 8-N-1 (on this PC: the ST-Link V2's
+virtual COM port `COM46`, or the board's own USB-serial bridge).
+
+> The `flash-targets.cmake` default probe selector
+> `0483:3752:0672FF555054877567101040` is the ST-Link V2 serial on this PC;
+> override with `-DDEBUG_PROBE=...` if it differs. The Keil ULINK2 cannot flash
+> this board (CMSIS-DAP v1 cannot access the H723 core); use the ST-Link V2 or
+> DFU.

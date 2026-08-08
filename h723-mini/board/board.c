@@ -52,6 +52,15 @@ static void MPU_Config(void)
 /* Clock tree as in the vendor 550 MHz example (HSE 25 MHz -> PLL1 M=10 N=220
  * P=1 -> 550 MHz SYSCLK, HCLK 275 MHz, APB1/2/3/4 137.5 MHz, VOS scale 0,
  * flash latency 3). */
+#ifdef QSPI_APP
+/* QSPI apps: the bootloader owns the clock tree, so an empty
+ * SystemClock_Config keeps the (identical) app main() callable without
+ * re-configuring RCC and killing the OSPI clock the code runs from. */
+void SystemClock_Config(void)
+{
+    /* no-op: h723_boot already configured HSE -> PLL1 -> 550 MHz + OSPI */
+}
+#else
 void SystemClock_Config(void)
 {
     RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -101,15 +110,22 @@ void SystemClock_Config(void)
         Error_Handler();
     }
 }
+#endif /* QSPI_APP */
 
 /* ------------------------------------------------------------------------ */
 void Board_Init(void)
 {
+#ifndef QSPI_APP
     MPU_Config();
+#else
+    /* h723_boot disables IRQ before jumping to the app; re-enable it here so
+     * HAL_GetTick()/HAL_Delay() (SysTick IRQ) work. */
+    __enable_irq();
+#endif
     SCB_EnableICache();
     SCB_EnableDCache();
 
-    SystemClock_Config();
+    SystemClock_Config();   /* no-op for QSPI apps */
     UART_Init();
     SWV_Init();
 }

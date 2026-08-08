@@ -45,6 +45,21 @@ STM32H7 HAL + CMSIS pulled from the vendor example projects).
 | `hse_test`       | HSE crystal check (boots on HSI 64 MHz)       |
 | `spi_flash_test` | W25Q64 OCTOSPI flash benchmark + XIP demo     |
 
+**`app_qspi/` (pure QSPI — code runs from the W25Q64 @ 0x90000000):**
+| Project              | What it is                                  |
+| -------------------- | ------------------------------------------- |
+| `blink_hello_qspi`   | LED blink from the W25Q64                    |
+| `dhry_550m_qspi`     | Dhrystone 2.1 from the W25Q64                |
+| `coremark_550m_qspi` | CoreMark 1.0 from the W25Q64                 |
+| `st7789_qspi`        | ST7789 LCD demo from the W25Q64              |
+
+**`tool/` (boot + infra):**
+| Project      | What it is                                             |
+| ------------ | ------------------------------------------------------ |
+| `h723_boot`  | Minimal bootloader: checks 0x90000000, memory-maps + jumps |
+| `qspi_map`   | Two-stage boot + app + the probe-rs OCTOSPI flash algorithm |
+| `probers_alg`| Harness: runs the OCTOSPI algorithm's register code as firmware |
+
 Measured on this board (GCC 15.3.1, hard-float, I/D caches on, USART console):
 
 | Benchmark          | Result                                  |
@@ -66,6 +81,20 @@ Verified on hardware:
   (PF6-10, PG6, 137.5 MHz) — erase/write/read throughput in every line mode,
   memory-mapped reads up to **65.6 MiB/s** (1-4-4), and an **XIP** demo that
   executes code from `0x90000000` (all checksums OK).
+* `h723_boot` (internal flash) runs at 550 MHz, initializes the W25Q64 via
+  OCTOSPI, and boots a stage-2 app from `0x90000000` when present.
+
+## QSPI / OCTOSPI status
+
+✅ **Fully working**: the `_qspi` apps link at `0x90000000`, `ninja flash`
+programs them into the W25Q64 via the **probe-rs OCTOSPI flash algorithm**
+(`tool/qspi_map/algo/`), and `h723_boot` boots them at 550 MHz. Verified on
+hardware: `blink_hello_qspi` (LED + console) and `dhry_550m_qspi`
+(**2.722 DMIPS/MHz from external flash — identical to internal flash**).
+The algorithm's write path (`ProgramPage`) was debugged with
+`tool/probers_alg` and fixed — see `tool/qspi_map/algo/README.md` for the
+root causes (FMODE = indirect write is `0b00`, command-only transfers
+auto-start, wait for TCF).
 
 The HAL/CMSIS under `drivers/` was copied from the vendor project
 `board_database\main-stm32h723-mini\vendor_projects\1.LED闪烁` (CubeMX

@@ -1,6 +1,6 @@
-# blink_hello_qspi — STM32H723ZGT6 (h723-mini) from the W25Q64 @ 0x90000000
+# blink_hello (app_qspi) — STM32H723ZGT6 (h723-mini) from the W25Q64 @ 0x90000000
 
-Same as `app/blink_hello` (PG7 low-active LED + USART1 console), but linked for
+Same as `bare/blink_hello` (PG7 low-active LED + USART1 console), but linked for
 and booted from the on-board W25Q64 at the OCTOSPI memory-mapped base
 `0x90000000`. Requires `h723_boot` in internal flash.
 

@@ -38,14 +38,14 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/stm32h723_board.cmake)
 
 add_executable(${PROJECT_NAME}.elf
     src/main.c
-    ../../app/spi_flash_test/src/w25q64.c
+    ../../bare/spi_flash_test/src/w25q64.c
 )
 stm32h723_apply_board(${PROJECT_NAME}.elf "-O2")
 target_sources(${PROJECT_NAME}.elf PRIVATE
     ${H723_HAL}/Src/stm32h7xx_hal_ospi.c
     ${H723_HAL}/Src/stm32h7xx_hal_mdma.c)
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../app/spi_flash_test/src)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../bare/spi_flash_test/src)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/objcopy-targets.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/flash-targets.cmake)

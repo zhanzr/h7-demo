@@ -1,6 +1,6 @@
-# st7789_qspi: ST7789 LCD demo from the W25Q64 (OCTOSPI memory-mapped).
-# Same sources as app/st7789 (1.54" 240x240, SPI6, TIM23 PWM backlight), linked
-# at 0x90000000 and booted by h723_boot.
+# coremark_550m (app_qspi): CoreMark 1.0 from the W25Q64 (OCTOSPI memory-mapped).
+# Same sources as bare/coremark_550m, linked at 0x90000000 and booted by
+# h723_boot.
 #
 # Pico-style workflow:
 #   bash build.sh
@@ -21,7 +21,7 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
 endif()
 
-project(st7789 C ASM)
+project(coremark_550m C ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -33,22 +33,25 @@ set(H723_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/app.ld" CACHE FILEPATH
 set(H723_SYSTEM_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/system_app.c" CACHE FILEPATH
     "QSPI app system init (non-destructive)" FORCE)
 
+set(CORE ${CMAKE_CURRENT_SOURCE_DIR}/coremark_1_0_1)
+
 add_executable(${PROJECT_NAME}.elf
     src/main.c
     src/system_app.c
-    src/gpio.c
-    src/tim.c
-    src/lcd/lcd_spi_154.c
-    src/lcd/lcd_fonts.c
+    src/utils.c
+    src/core_portme.c
+    ${CORE}/core_list_join.c
+    ${CORE}/core_main.c
+    ${CORE}/core_matrix.c
+    ${CORE}/core_state.c
+    ${CORE}/core_util.c
 )
 
-target_include_directories(${PROJECT_NAME}.elf PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+stm32h723_apply_board(${PROJECT_NAME}.elf "-Ofast -ffp-contract=fast -funroll-loops")
 
-stm32h723_apply_board(${PROJECT_NAME}.elf "-O2")
-
-target_sources(${PROJECT_NAME}.elf PRIVATE
-    ${H723_HAL}/Src/stm32h7xx_hal_spi.c
-    ${H723_HAL}/Src/stm32h7xx_hal_tim.c
+target_include_directories(${PROJECT_NAME}.elf PRIVATE
+    src
+    ${CORE}
 )
 
 target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QSPI_APP=1)

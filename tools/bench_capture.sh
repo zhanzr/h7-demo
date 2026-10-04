@@ -12,7 +12,7 @@
 #   PORT=COMx, or override the default below.
 #
 # Example: PORT=COM3 bash tools/bench_capture.sh \
-#             h723-mini/dhry_550m/build/dhry_550m.hex 30 dhry-gcc
+#             h723-mini/bare/dhry_550m/build/dhry_550m.hex 30 dhry-gcc
 set -euo pipefail
 
 HEX="${1:?usage: bench_capture.sh <hex-file> <seconds> [label]}"

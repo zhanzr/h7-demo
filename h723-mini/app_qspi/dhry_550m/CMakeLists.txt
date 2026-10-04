@@ -1,5 +1,5 @@
-# dhry_550m_qspi: Dhrystone 2.1 from the W25Q64 (OCTOSPI memory-mapped).
-# Same sources as app/dhry_550m, linked at 0x90000000 and booted by h723_boot.
+# dhry_550m (app_qspi): Dhrystone 2.1 from the W25Q64 (OCTOSPI memory-mapped).
+# Same sources as bare/dhry_550m, linked at 0x90000000 and booted by h723_boot.
 #
 # Pico-style workflow:
 #   bash build.sh

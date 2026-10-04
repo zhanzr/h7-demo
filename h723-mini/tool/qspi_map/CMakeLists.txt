@@ -9,8 +9,11 @@
 #
 # Targets:
 #   ninja            - builds both .elf + .hex
-#   ninja flash_boot - probe-rs -> boot.hex into internal flash (STM32H723ZG)
-#   ninja flash      - alias for flash_boot
+#   ninja flash_boot - probe-rs -> boot.hex into internal flash (STM32H723ZG),
+#                      probe auto-detected
+#   ninja flash_boot-stlink|-dap|-jlink|-ulink - same, forcing that probe family
+#   ninja flash      - alias for flash_boot (and flash-stlink / -dap / -jlink too)
+#   ninja probes     - list the probes probe-rs can see right now
 #   ninja bin        - app.raw .bin (for the bootloader UART download / ext flash)
 #
 # The stage-2 app is flashed into the W25Q64 separately:
@@ -54,13 +57,13 @@ set(H723_SYSTEM_SOURCE "${BOARD_DIR}/system_stm32h7xx.c" CACHE FILEPATH
 
 add_executable(boot.elf
     boot/src/main.c
-    ../../app/spi_flash_test/src/w25q64.c
+    ../../bare/spi_flash_test/src/w25q64.c
 )
 stm32h723_apply_board(boot.elf "-O2")
 target_sources(boot.elf PRIVATE
     ${H723_HAL}/Src/stm32h7xx_hal_ospi.c
     ${H723_HAL}/Src/stm32h7xx_hal_mdma.c)
-target_include_directories(boot.elf PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../app/spi_flash_test/src)
+target_include_directories(boot.elf PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../bare/spi_flash_test/src)
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/boot.hex
     COMMAND ${CMAKE_OBJCOPY} -O ihex $<TARGET_FILE:boot.elf> ${CMAKE_CURRENT_BINARY_DIR}/boot.hex
@@ -99,34 +102,64 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/app.bin
 add_custom_target(app_bin DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/app.bin)
 
 # ---------------------------------------------------------------------------
-# Flashing
+# Flashing: ninja flash_boot / flash_boot-<probe-family>, plus `flash` aliases
 # ---------------------------------------------------------------------------
-# DEBUG_PROBE is optional: empty (default) makes probe-rs auto-detect the
-# connected probe. To pin a specific probe, view its selector with `probe-rs
-# list` (e.g. 0483:374b:xxxx... for an ST-Link V2) and pass -DDEBUG_PROBE=...
-set(DEBUG_PROBE "" CACHE STRING
-    "probe-rs --probe selector (VID:PID[:Serial], e.g. 0483:374b:xxxx...); empty = auto-detect")
-
-if(DEBUG_PROBE)
-    set(PROBE_ARGS --probe "${DEBUG_PROBE}")
-else()
-    set(PROBE_ARGS)
-endif()
-
-find_program(PROBE_RS NAMES probe-rs probe-rs.exe
-    HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin")
+# The probe families are resolved from `probe-rs list` at configure time by
+# cmake/probe-select.cmake. Overrides:
+#   -DDEBUG_PROBE=VID:PID[:SERIAL]    pin one probe for every flash target
+#   PROBE_RS_PROBE=VID:PID[:SERIAL]   same, for a single run
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/probe-select.cmake)
 
 if(PROBE_RS)
-    add_custom_target(flash_boot
-        COMMAND "${PROBE_RS}" download ${PROBE_ARGS}
-                    --chip "STM32H723ZG" --protocol swd
-                    --connect-under-reset
-                    --binary-format hex --verify --reset --non-interactive
-                    --disable-progressbars ${CMAKE_CURRENT_BINARY_DIR}/boot.hex
-        DEPENDS boot_hex
-        COMMENT "Flashing boot.hex to STM32H723ZG via probe-rs (ST-Link V2, SWD) ..."
-        USES_TERMINAL)
+    # No --connect-under-reset: on this ST-Link V2 with probe-rs 0.32 the
+    # under-reset attach never asserts nRST (RCC_RSR shows no PINRSTF after it),
+    # so the chip is not reset and probe-rs times out waiting for core 0 to halt
+    # ("Timeout while attaching to target under reset"). A plain attach halts the
+    # core, which is all an internal-flash download needs.
+    #
+    # One target per probe family; the command line is spelled out at each
+    # add_custom_target() call so CMake keeps every argument intact.
+    foreach(_fam auto stlink dap jlink)
+        if(_fam STREQUAL "auto")
+            set(_tgt flash_boot)
+        else()
+            set(_tgt flash_boot-${_fam})
+        endif()
+
+        h723_probe_ready(${_fam} _ready)
+        if(NOT _ready)
+            h723_probe_hint(${_fam} _hint)
+            add_custom_target(${_tgt}
+                COMMAND ${CMAKE_COMMAND} -E echo "${_hint}"
+                COMMAND ${CMAKE_COMMAND} -E false
+                COMMENT "${_tgt}: no ${_fam} probe")
+            continue()
+        endif()
+
+        h723_probe_args(${_fam} _pargs)
+        if(_pargs)
+            set(_how "${_fam} probe")
+        else()
+            set(_how "probe-rs auto-detect")
+        endif()
+
+        add_custom_target(${_tgt}
+            COMMAND "${PROBE_RS}" download ${_pargs}
+                        --chip "STM32H723ZG" --protocol swd
+                        --binary-format hex --verify --reset --non-interactive
+                        --disable-progressbars "${CMAKE_CURRENT_BINARY_DIR}/boot.hex"
+            DEPENDS boot_hex
+            COMMENT "Flashing boot.hex to STM32H723ZG via probe-rs (SWD) [${_how}]"
+            USES_TERMINAL)
+    endforeach()
+
+    h723_add_ulink_stub(flash_boot)
+
+    # `ninja flash` keeps working as before, and mirrors every probe variant.
     add_custom_target(flash DEPENDS flash_boot)
+    foreach(_fam stlink dap jlink ulink)
+        add_custom_target(flash-${_fam} DEPENDS flash_boot-${_fam})
+    endforeach()
 else()
     message(WARNING "probe-rs not found - 'ninja flash' will not work")
 endif()

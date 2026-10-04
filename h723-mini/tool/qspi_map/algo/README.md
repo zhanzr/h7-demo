@@ -14,9 +14,9 @@ via probe-rs, using the STM32H723ZG OCTOSPI1 in 1-line SPI mode (no QE needed).
 ## Status (verified on hardware)
 
 **Fully working** (fixed during bring-up with `../probers_alg`). The full flow is
-proven on the board: `ninja flash` on any `_qspi` app programs the W25Q64 and
-`h723_boot` boots it at 550 MHz. Verified apps: `blink_hello_qspi` and
-`dhry_550m_qspi` (2.722 DMIPS/MHz from external flash — matches internal flash).
+proven on the board: `ninja flash` on any `app_qspi/<app>` programs the W25Q64 and
+`h723_boot` boots it at 550 MHz. Verified apps: `app_qspi/blink_hello` and
+`app_qspi/dhry_550m` (2.722 DMIPS/MHz from external flash — matches internal flash).
 
 | Function     | Status |
 |--------------|--------|

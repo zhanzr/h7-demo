@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the STM32H723ZGT6 st7789 LCD demo with CMake + Ninja.
+# Build the STM32H723ZGT6 st7789_md154_240x240 LCD demo with CMake + Ninja.
 # Run with:  bash build.sh    (or ./build.sh on Linux)
 set -euo pipefail
 

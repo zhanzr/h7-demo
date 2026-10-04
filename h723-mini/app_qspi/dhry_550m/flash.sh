@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flash coremark_550m_qspi into the on-board W25Q64 (0x90000000) via the
+# Flash dhry_550m (app_qspi) into the on-board W25Q64 (0x90000000) via the
 # probe-rs OCTOSPI flash algorithm (ST-Link V2, SWD). h723_boot must already
 # be in internal flash.
 set -euo pipefail

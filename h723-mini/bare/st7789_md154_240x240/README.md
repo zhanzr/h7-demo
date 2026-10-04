@@ -1,4 +1,4 @@
-# st7789 — ST7789 SPI LCD demo for the STM32H723ZGT6 (h723-mini) @ 550 MHz
+# st7789_md154_240x240 — 1.54" 240x240 ST7789 SPI LCD demo for the STM32H723ZGT6 (h723-mini) @ 550 MHz
 
 Drives the on-board **1.54" 240×240 ST7789** panel over **SPI6** (CS PG8 /
 SCK PG13 / MOSI PG14, AF5, 68.75 MHz SCK) with the **backlight on PG12** and

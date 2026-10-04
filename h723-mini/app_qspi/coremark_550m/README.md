@@ -1,6 +1,6 @@
-﻿# coremark_550m_qspi — STM32H723ZGT6 (h723-mini) from the W25Q64 @ 0x90000000
+# coremark_550m (app_qspi) — STM32H723ZGT6 (h723-mini) from the W25Q64 @ 0x90000000
 
-Same sources as `app/coremark_550m` but linked for and booted from the on-board
+Same sources as `bare/coremark_550m` but linked for and booted from the on-board
 W25Q64 at the OCTOSPI memory-mapped base `0x90000000`. Requires `h723_boot` in
 internal flash.
 
@@ -12,13 +12,13 @@ internal flash.
 | Validation     | `Correct operation validated.` (seedcrc 0xe9f5, crcfinal 0xcc42) |
 
 Running entirely from external flash scores the same as the internal-flash
-build (`app/coremark_550m`: 2372.59) — the 137.5 MHz OCTOSPI memory-mapped
+build (`bare/coremark_550m`: 2372.59) — the 137.5 MHz OCTOSPI memory-mapped
 reads keep up with the M7's I-cache.
 
 ## Build & flash
 
 ```bash
-bash build.sh                 # -> build/coremark_550m_qspi.hex (linked at 0x90000000)
+bash build.sh                 # -> build/coremark_550m.hex (linked at 0x90000000)
 ninja flash                   # writes the W25Q64 via the OCTOSPI algorithm
 ```
 

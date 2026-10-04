@@ -1,12 +1,11 @@
-# blink_hello_qspi: minimal STM32H723ZGT6 (h723-mini) QSPI app @ 550 MHz.
-# Same as app/blink_hello but linked for and booted from the W25Q64 at
-# 0x90000000 (OCTOSPI memory-mapped), by h723_boot in internal flash.
+# st7789_md154_240x240 (app_qspi): ST7789 LCD demo (1.54" 240x240) from the W25Q64.
+# Same sources as bare/st7789_md154_240x240 (SPI6, TIM23 PWM backlight), linked
+# at 0x90000000 and booted by h723_boot.
 #
 # Pico-style workflow:
-#   bash build.sh                           # default: GNU arm-none-eabi-gcc
-#   ninja           # builds .elf + .hex (hex is what `ninja flash` uses)
+#   bash build.sh
+#   ninja           # builds .elf + .hex
 #   ninja flash     # writes the W25Q64 via the OCTOSPI flash algorithm
-#   ninja bin       # optional raw .bin image
 
 cmake_minimum_required(VERSION 3.13)
 
@@ -22,15 +21,13 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
 endif()
 
-project(blink_hello C ASM)
+project(st7789 C ASM)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/stm32h723_board.cmake)
 
-# QSPI app: link at 0x90000000 and use the non-destructive SystemInit (the
-# bootloader owns the 550 MHz clock tree / OSPI clock).
 set(H723_LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/app.ld" CACHE FILEPATH
     "QSPI app linker script (code at 0x90000000)" FORCE)
 set(H723_SYSTEM_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/system_app.c" CACHE FILEPATH
@@ -39,12 +36,21 @@ set(H723_SYSTEM_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/src/system_app.c" CACHE FILE
 add_executable(${PROJECT_NAME}.elf
     src/main.c
     src/system_app.c
+    src/gpio.c
+    src/tim.c
+    src/lcd/lcd_spi_154.c
+    src/lcd/lcd_fonts.c
 )
+
+target_include_directories(${PROJECT_NAME}.elf PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 stm32h723_apply_board(${PROJECT_NAME}.elf "-O2")
 
-# QSPI app: make board.c's SystemClock_Config()/MPU a no-op so the identical
-# main() can call Board_Init() without breaking the bootloader's clocks/MPU.
+target_sources(${PROJECT_NAME}.elf PRIVATE
+    ${H723_HAL}/Src/stm32h7xx_hal_spi.c
+    ${H723_HAL}/Src/stm32h7xx_hal_tim.c
+)
+
 target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QSPI_APP=1)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/objcopy-targets.cmake)

@@ -17,7 +17,9 @@ flash. On every reset it:
 
 ```bash
 bash build.sh                        # cmake -G Ninja + ninja -> build/h723_boot.hex
-cd build && ninja flash              # probe-rs -> internal flash (ST-Link V2, SWD)
+cd build && ninja flash              # probe-rs -> internal flash, probe auto-detected
+ninja flash-stlink                   # ... or force the ST-Link (also -dap / -jlink / -ulink)
+ninja probes                         # list the probes probe-rs can see right now
 ```
 
 ## Console output
@@ -44,9 +46,9 @@ boot FAIL: ...
 The firmware image is linked at `0x90000000` (see `../app_qspi/`). To write it
 to the W25Q64:
 
-- **probe-rs custom OCTOSPI flash algorithm** (`../qspi_map/algo/`): any `_qspi`
-  app's `ninja flash` target does this. ✅ **Verified on hardware**: the write
-  path works, and this bootloader boots `blink_hello_qspi` / `dhry_550m_qspi`
+- **probe-rs custom OCTOSPI flash algorithm** (`../qspi_map/algo/`): any
+  `app_qspi/<app>` `ninja flash` target does this. ✅ **Verified on hardware**: the write
+  path works, and this bootloader boots `app_qspi/blink_hello` / `app_qspi/dhry_550m`
   from the W25Q64 at 550 MHz (`OSPI firmware check: PASS - booting`).
 - **openocd `stmsmi`** — see `../qspi_map/README.md`.
 

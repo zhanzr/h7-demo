@@ -20,10 +20,12 @@ instructions are in [`h723-mini/README.md`](h723-mini/README.md).
 | Path             | What it is                                        |
 | ---------------- | ------------------------------------------------- |
 | `h723-mini/`     | Board + all projects (see its README)             |
-| `h723-mini/app/` | Internal-flash applications (blink, benchmarks, LCD, flash test) |
-| `h723-mini/app_qspi/` | Apps linked at `0x90000000`, booted from the on-board W25Q64 |
+| `h723-mini/bare/` | Bare-metal apps in internal flash (blink, benchmarks, LCD, flash test) |
+| `h723-mini/app_qspi/` | The same apps linked at `0x90000000`, booted from the on-board W25Q64 |
 | `h723-mini/tool/`| Bootloader, two-stage QSPI boot + flash algorithm, algorithm harness |
 | `h723-mini/board/` | Shared board layer (clock, MPU, UART, startup, linker) |
+| `h723-mini/board_images/` | Board layout / photo images               |
+| `h723-mini/cubemx_file/` | Board CubeMX project (`.ioc`)             |
 | `h723-mini/cmake/` | Toolchain + board + flash-target helpers        |
 | `h723-mini/drivers/` | STM32H7 HAL + CMSIS (from the vendor example)  |
 | `tools/`         | Cross-project helper scripts                     |
@@ -49,7 +51,7 @@ memory-mapped base `0x90000000`:
 Build + flash any project with:
 
 ```bash
-cd h723-mini/app/dhry_550m
+cd h723-mini/bare/dhry_550m
 bash build.sh
 ninja flash
 ```

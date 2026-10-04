@@ -4,22 +4,26 @@ Same sources as `bare/coremark_550m` but linked for and booted from the on-board
 W25Q64 at the OCTOSPI memory-mapped base `0x90000000`. Requires `h723_boot` in
 internal flash.
 
-## Results (measured from the W25Q64, 550 MHz, GCC 15.3.1, hard-float, caches on)
+## Results (measured from the W25Q64, 550 MHz, hard-float, caches on)
 
-| Flags                                          | CoreMark 1.0 | Total time |
-| ---------------------------------------------- | ------------ | ---------- |
-| `-Ofast -ffp-contract=fast -funroll-all-loops` | **2440.21**  | 10.245 s   |
-| + `-DSTM32_LTO=ON`                             | 2287.70      | 10.928 s   |
+| Toolchain           | Flags                                          | CoreMark 1.0 | Total time |
+| ------------------- | ---------------------------------------------- | ------------ | ---------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2440.21      | 10.245 s   |
+| GCC 15.3.1          | + `-DSTM32_LTO=ON`                             | 2287.70      | 10.928 s   |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | 2394.64      | 10.440 s   |
+| armclang 6.24 (AC6) | `-Omax -fno-lto` (via `BENCH_OPT_C`)           | **2864.67**  | 8.727 s    |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2063.90      | 12.113 s   |
 
-Both configurations validate (`Correct operation validated.`, seedcrc 0xe9f5,
-crcfinal 0xcc42).
+All rows validate (`Correct operation validated.`, seedcrc 0xe9f5, crcfinal
+0xcc42) and print the flags actually used.
 
 Running entirely from external flash scores the same as the internal-flash build
-(`bare/coremark_550m`: 2440.93 vs 2440.21 — 0.03% slower) — the 137.5 MHz OCTOSPI
-memory-mapped reads keep up with the M7's I-cache. The flags and the `BENCH_OPT`
-/ `BENCH_OPT_C` / `STM32_LTO` knobs are borrowed from the nano-f411 "f4-demo"
-benchmarks; as on the bare-metal twin, **LTO costs 6.2% here** (2287.70 vs
-2440.21) and stays off by default.
+(0.02–0.04% slower than the matching `bare/coremark_550m` row in every case) —
+the 137.5 MHz OCTOSPI memory-mapped reads keep up with the M7's I-cache. The
+flags and the `BENCH_OPT` / `BENCH_OPT_C` / `STM32_LTO` / `STM32_TOOLCHAIN` knobs
+are the same as the bare-metal twin's (borrowed from the nano-f411 "f4-demo"
+benchmarks): **armclang `-Omax -fno-lto` is fastest and LTO costs 6.2% on this
+board** — see `bare/coremark_550m/README.md` for the full discussion.
 
 ## Build & flash
 
@@ -27,6 +31,10 @@ benchmarks; as on the bare-metal twin, **LTO costs 6.2% here** (2287.70 vs
 bash build.sh                 # -> build/coremark_550m.hex (linked at 0x90000000)
 ninja flash                   # writes the W25Q64 via the OCTOSPI algorithm
 ```
+
+Every toolchain in `bare/coremark_550m/README.md` works here too: swap `build/`
+for `build-ac6/` / `build-starm/`, pass the same `-DSTM32_TOOLCHAIN=` /
+`-DBENCH_OPT*` flags, then run `ninja flash` from that build dir.
 
 > **Verified on hardware**: `ninja flash` programs the W25Q64 via the OCTOSPI
 > algorithm and `h723_boot` boots this app at 550 MHz (`CoreMark 1.0 : 2440.21

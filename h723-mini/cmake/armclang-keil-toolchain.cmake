@@ -30,12 +30,21 @@ set(ARMCLANG_ROOT "D:/Keil_v5/ARM/ARMCLANG" CACHE PATH
 set(ARM_GCC_ROOT "D:/Arm/GNU Toolchain mingw-w64-x86_64-arm-none-eabi" CACHE PATH
     "GNU arm-none-eabi root (assembler, linker, newlib)")
 
+# find_program paths must be in the flavour the running cmake understands: MSYS
+# cmake splits a Windows-style "D:/..." hint at the colon (it treats it as a
+# PATH list) and re-roots the leading "D" against the build dir. h723_tool_path
+# converts to "/d/..." for MSYS cmake and keeps "d:/..." elsewhere.
+include(${CMAKE_CURRENT_LIST_DIR}/tool-path.cmake)
+h723_tool_path("${ARMCLANG_ROOT}/bin" _ARMCLANG_BIN)
+h723_tool_path("${ARM_GCC_ROOT}/bin" _GNU_BIN)
+
 # Compile C with armclang (LLVM). The explicit target is required: armclang
 # otherwise defaults to "unspecified-arm-none-none". -mcpu keeps even the
 # configure-time sanity compiles on the right core. The -include shim fixes the
 # missing newlib wint_t (armclang's bundled stddef.h shadows LLVM's and ignores
 # the __need_wint_t protocol).
-set(CMAKE_C_COMPILER "${ARMCLANG_ROOT}/bin/armclang.exe")
+find_program(CMAKE_C_COMPILER NAMES armclang armclang.exe
+    HINTS "${_ARMCLANG_BIN}" REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=arm-arm-none-eabi -mcpu=cortex-m7")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include ${CMAKE_CURRENT_LIST_DIR}/armclang_force_wint_t.h")
 # Rename printf -> bench_printf so armclang does not emit the ARMCLIB
@@ -44,20 +53,26 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include ${CMAKE_CURRENT_LIST_DIR}/armclang_
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -include ${CMAKE_CURRENT_LIST_DIR}/printf_rename.h")
 
 # The ST startup file uses GNU as syntax: assemble it with the GNU assembler.
-set(CMAKE_ASM_COMPILER "${ARM_GCC_ROOT}/bin/arm-none-eabi-gcc.exe")
+find_program(CMAKE_ASM_COMPILER NAMES arm-none-eabi-gcc arm-none-eabi-gcc.exe
+    HINTS "${_GNU_BIN}" REQUIRED)
 
 # Link with the GNU gcc driver (GNU ld + our .ld script + newlib). armclang
 # objects are standard ELF and link cleanly.
-set(CMAKE_LINKER "${ARM_GCC_ROOT}/bin/arm-none-eabi-gcc.exe")
+find_program(CMAKE_LINKER NAMES arm-none-eabi-gcc arm-none-eabi-gcc.exe
+    HINTS "${_GNU_BIN}" REQUIRED)
 
 # CMake's ARMClang module builds archives with `armar --create -cr`, so the
 # archive tool must be Keil's armar (only used for configure-time checks).
-set(CMAKE_AR "${ARMCLANG_ROOT}/bin/armar.exe")
+find_program(CMAKE_AR NAMES armar armar.exe
+    HINTS "${_ARMCLANG_BIN}" REQUIRED)
 
 # Object tools operate on the (ELF) output of the GNU link.
-set(CMAKE_OBJCOPY "${ARM_GCC_ROOT}/bin/arm-none-eabi-objcopy.exe")
-set(CMAKE_OBJDUMP "${ARM_GCC_ROOT}/bin/arm-none-eabi-objdump.exe")
-set(CMAKE_SIZE "${ARM_GCC_ROOT}/bin/arm-none-eabi-size.exe")
+find_program(CMAKE_OBJCOPY NAMES arm-none-eabi-objcopy arm-none-eabi-objcopy.exe
+    HINTS "${_GNU_BIN}" REQUIRED)
+find_program(CMAKE_OBJDUMP NAMES arm-none-eabi-objdump arm-none-eabi-objdump.exe
+    HINTS "${_GNU_BIN}" REQUIRED)
+find_program(CMAKE_SIZE NAMES arm-none-eabi-size arm-none-eabi-size.exe
+    HINTS "${_GNU_BIN}" REQUIRED)
 
 # Bare-metal target: compiler sanity check links against a static library so
 # no executable link step is needed during configure.

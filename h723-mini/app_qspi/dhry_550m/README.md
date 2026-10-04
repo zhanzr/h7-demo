@@ -6,14 +6,17 @@ internal flash.
 
 ## Results (measured from the W25Q64, 550 MHz, GCC 15.3.1, hard-float, caches on)
 
-| Flags                                      | Dhrystones/s | DMIPS/MHz |
-| ------------------------------------------ | ------------ | --------- |
-| `-Ofast -ffp-contract=fast -funroll-loops` | 2,630,425    | 2.722     |
+| Toolchain           | Flags                                          | Dhrystones/s | DMIPS/MHz |
+| ------------------- | ---------------------------------------------- | ------------ | --------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,630,425    | 2.722     |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | **2,833,530**| **2.932** |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2,643,171    | 2.735     |
 
-Identical to the internal-flash build (`bare/dhry_550m`: 2,631,579 / 2.723 —
-0.04% faster), so running from the W25Q64 costs nothing here. Flags come from the
-same `BENCH_OPT` knob borrowed from the nano-f411 "f4-demo" benchmarks; **do not
-add `-flto`** for Dhrystone (it inflates the score — see
+Identical to the internal-flash build (`bare/dhry_550m`: ≤0.05% difference in
+every row), so running from the W25Q64 costs nothing here. Flags come from the
+same `BENCH_OPT` knob borrowed from the nano-f411 "f4-demo" benchmarks, and the
+toolchain is selected with `-DSTM32_TOOLCHAIN=<gcc|armclang|starm-clang>`; **do
+not add `-flto`** for Dhrystone (it inflates the score — see
 `bare/dhry_550m/README.md`).
 
 ## Build & flash

@@ -3,7 +3,8 @@
   * @brief   Minimal newlib retarget layer for a bare-metal STM32H723 build.
   *
   * _write() is redirected to the USART1 console (PA9/PA10 via board/) so
-  * printf() output is visible on COM3 at 115200 baud.
+  * printf() output is visible on the board's USB-serial bridge (a CH340;
+  * COM89 on the development machine) at 115200 baud.
   */
 
 #include <errno.h>
@@ -21,6 +22,18 @@ extern char _estack[];
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* ARM AEABI thread-pointer read. starm-clang's newlib implements errno as a TLS
+ * variable (errno -> __tls), read through __aeabi_read_tp(). On an unthreaded
+ * bare-metal target there is no thread pointer, so return a stable
+ * static-address "thread" that the TLS offset / errno can index off of. GNU
+ * newlib never references it (its errno is *__errno()), so GCC and armclang
+ * links leave the symbol unused and --gc-sections drops it. */
+void *__aeabi_read_tp(void)
+{
+    static char tp_slot;
+    return &tp_slot;
+}
 
 void _init(void)
 {

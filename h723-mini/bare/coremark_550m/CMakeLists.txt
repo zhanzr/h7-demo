@@ -26,16 +26,18 @@ endif()
 # armclang = Keil Arm Compiler 6 C + GNU as/ld. CMAKE_TOOLCHAIN_FILE is
 # cached, so use a separate build dir per toolchain (build/ for gcc,
 # build-gcc-lto/ for gcc+LTO, build-ac6/ for armclang).
-set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default) or armclang (Keil AC6)")
-set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang)
+set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default), armclang (Keil AC6) or starm-clang (ST Arm Clang)")
+set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang starm-clang)
 
 # Link-time optimization. GCC only: armclang -flto/-Omax emits LLVM bitcode
 # (.llvm.lto) that needs armlink + ARMCLIB and cannot be consumed by GNU ld.
-option(STM32_LTO "Enable -flto with the GCC toolchain" OFF)
+option(STM32_LTO "Enable LTO (gcc or starm-clang only)" OFF)
 
 if(NOT CMAKE_TOOLCHAIN_FILE)
     if(STM32_TOOLCHAIN STREQUAL "armclang")
         set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/armclang-keil-toolchain.cmake")
+    elseif(STM32_TOOLCHAIN STREQUAL "starm-clang")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/starm-clang-toolchain.cmake")
     else()
         set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
     endif()
@@ -84,7 +86,11 @@ endif()
 
 # Report the flags actually used: CoreMark prints COMPILER_FLAGS (FLAGS_STR),
 # so the console line matches the build instead of a hardcoded string.
-target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_OPT}\"")
+set(BENCH_FLAGS_STR "${BENCH_OPT}")
+if(BENCH_OPT_C)
+    string(APPEND BENCH_FLAGS_STR " ${BENCH_OPT_C}")
+endif()
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_FLAGS_STR}\"")
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     src

@@ -36,34 +36,8 @@ if(H723_PROBE_SELECT_INCLUDED)
 endif()
 set(H723_PROBE_SELECT_INCLUDED TRUE)
 
-# h723_tool_path(<path> <out>): make a tool path usable by the shell CMake uses
-# for custom-command wrappers.
-#
-# MSYS cmake is awkward with Windows-style paths: find_program() can hand back a
-# re-rooted path ("C:/x/y.exe" becomes "<cwd>/C:/x/y.exe"), and its Ninja
-# generator then writes /bin/sh scripts in which such a path is looked up
-# relative to the build dir. Repair the re-rooted form, then address the drive the
-# way the active shell understands it: "/c/x/y.exe" for sh, "c:/x/y.exe" for
-# cmd.exe.
-function(h723_tool_path in out)
-    set(_p "${in}")
-    # Split at the first "X:/" marker: everything before it is a prefix MSYS added
-    # (it re-roots Windows paths against the current binary dir).
-    string(FIND "${_p}" ":/" _c)
-    if(_c GREATER -1)
-        math(EXPR _dpos "${_c} - 1")
-        math(EXPR _restpos "${_c} + 1")
-        string(SUBSTRING "${_p}" ${_dpos} 1 _drive)
-        string(SUBSTRING "${_p}" ${_restpos} -1 _rest)
-        string(TOLOWER "${_drive}" _drive)
-        if(CMAKE_COMMAND MATCHES "^/")
-            set(_p "/${_drive}${_rest}")
-        else()
-            set(_p "${_drive}:${_rest}")
-        endif()
-    endif()
-    set(${out} "${_p}" PARENT_SCOPE)
-endfunction()
+# h723_tool_path() lives in tool-path.cmake (shared with stm32h723_board.cmake).
+include(${CMAKE_CURRENT_LIST_DIR}/tool-path.cmake)
 
 find_program(PROBE_RS NAMES probe-rs probe-rs.exe
     HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin"

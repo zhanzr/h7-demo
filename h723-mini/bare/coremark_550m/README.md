@@ -10,14 +10,21 @@ selected at configure time.
 
 ## Results (measured on hardware, 550 MHz, hard-float, I/D caches on)
 
-| Toolchain  | Flags                                          | CoreMark 1.0 | Iterations/s | Total time |
-| ---------- | ---------------------------------------------- | ------------ | ------------ | ---------- |
-| GCC 15.3.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2440.93      | 2440.93      | 10.242 s   |
-| GCC 15.3.1 | + `-DSTM32_LTO=ON`                             | 2288.54      | 2288.54      | 10.924 s   |
+| Toolchain           | Flags                                          | CoreMark 1.0 | Iterations/s | Total time |
+| ------------------- | ---------------------------------------------- | ------------ | ------------ | ---------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2440.93      | 2440.93      | 10.242 s   |
+| GCC 15.3.1          | + `-DSTM32_LTO=ON`                             | 2288.54      | 2288.54      | 10.924 s   |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | 2395.55      | 2395.55      | 10.436 s   |
+| armclang 6.24 (AC6) | `-Omax -fno-lto` (via `BENCH_OPT_C`)           | **2865.66**  | **2865.66**  | 8.724 s    |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2064.75      | 2064.75      | 12.108 s   |
 
-The build prints **`Correct operation validated.`** with the expected CRCs
-(seedcrc 0xe9f5, crcfinal 0xcc42) for both rows, and the console reports the
-flags actually used (`Compiler flags : ...`), taken from `BENCH_OPT`.
+Every row prints **`Correct operation validated.`** with the expected CRCs
+(seedcrc 0xe9f5, crcfinal 0xcc42), and the console reports the flags actually
+used (`Compiler flags : ...`): `FLAGS_STR` is generated from `BENCH_OPT` /
+`BENCH_OPT_C`, so the printed line cannot drift from the build.
+
+The external-flash (bootloader) twin measures the same — see
+`../../app_qspi/coremark_550m/README.md`.
 
 ### Where the flags come from
 
@@ -31,6 +38,23 @@ from the nano-f411 **f4-demo** benchmarks, which measured `-funroll-all-loops`
 (+6.6% there), so this is board/toolchain specific rather than a general rule.
 Both configurations still validate.
 
+### Toolchains: gcc (default) + two optional
+
+`-DSTM32_TOOLCHAIN=<gcc|armclang|starm-clang>` selects the compiler (see
+`../../cmake/*-toolchain.cmake`). All three build this benchmark; all three
+results are in the table above.
+
+* **armclang (Keil AC6 6.24)** — fastest CoreMark here: `-Omax` with `-fno-lto`
+  reaches **2865.66 it/s**, +17% over the GCC default. `-fno-lto` is required
+  because `-Omax` makes armclang emit LLVM bitcode that GNU ld cannot link.
+  armclang rejects `-funroll-all-loops` (`-Wignored-optimization-argument`), so
+  its rows use `-funroll-loops`.
+* **ST Arm Clang (21.1.1, from STM32CubeIDE)** — self-contained LLVM + LLD with
+  its own newlib sysroot; slower on CoreMark (2064.75 it/s, −15%). Its newlib
+  keeps `errno` in TLS, so `board/syscalls.c` provides the AEABI
+  `__aeabi_read_tp()` shim (unused by the GNU/armclang links, dropped by
+  `--gc-sections`).
+
 ## Build
 
 Requires the CMake/Ninja environment (MSYS2 mingw64, `build.sh` adds it to
@@ -41,9 +65,18 @@ Requires the CMake/Ninja environment (MSYS2 mingw64, `build.sh` adds it to
 # GNU arm-none-eabi-gcc (default)
 bash build.sh                      # == cmake -G Ninja .. && ninja
 
-# Keil AC6 (armclang)
+# Keil AC6 (armclang); -Omax -fno-lto is the fastest CoreMark measured above
 mkdir -p build-ac6 && cd build-ac6
-cmake -G Ninja -DSTM32_TOOLCHAIN=armclang ..
+cmake -G Ninja -DSTM32_TOOLCHAIN=armclang '-DBENCH_OPT=' '-DBENCH_OPT_C=-Omax -fno-lto' ..
+ninja
+
+# Keil AC6 with the default (armclang-supported) flag set
+cmake -G Ninja -DSTM32_TOOLCHAIN=armclang \
+      '-DBENCH_OPT=-Ofast -ffp-contract=fast -funroll-loops' ..
+
+# ST Arm Clang (STM32CubeIDE's LLVM 21 + LLD)
+mkdir -p build-starm && cd build-starm
+cmake -G Ninja -DSTM32_TOOLCHAIN=starm-clang ..
 ninja
 ```
 

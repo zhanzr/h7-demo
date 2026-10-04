@@ -13,15 +13,27 @@ if(POLICY CMP0123)
     cmake_policy(SET CMP0123 NEW)
 endif()
 
-set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default) or armclang (Keil AC6)")
-set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang)
-option(STM32_LTO "Enable -flto with the GCC toolchain" OFF)
+set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default), armclang (Keil AC6) or starm-clang (ST Arm Clang)")
+set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang starm-clang)
+option(STM32_LTO "Enable LTO (gcc or starm-clang only)" OFF)
 
 if(NOT CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
+    if(STM32_TOOLCHAIN STREQUAL "armclang")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/armclang-keil-toolchain.cmake")
+    elseif(STM32_TOOLCHAIN STREQUAL "starm-clang")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/starm-clang-toolchain.cmake")
+    else()
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
+    endif()
 endif()
 
 project(coremark_550m C ASM)
+
+# armclang only: restore the GNU-style link rule after project() (CMake's
+# ARMClang module installs an armlink-style rule that GNU ld cannot use).
+if(STM32_TOOLCHAIN STREQUAL "armclang")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/armclang-postproject.cmake)
+endif()
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -63,7 +75,11 @@ endif()
 
 # Report the flags actually used: CoreMark prints COMPILER_FLAGS (FLAGS_STR),
 # so the console line matches the build instead of a hardcoded string.
-target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_OPT}\"")
+set(BENCH_FLAGS_STR "${BENCH_OPT}")
+if(BENCH_OPT_C)
+    string(APPEND BENCH_FLAGS_STR " ${BENCH_OPT_C}")
+endif()
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_FLAGS_STR}\"")
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     src

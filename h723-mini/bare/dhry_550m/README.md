@@ -10,12 +10,20 @@ selected at configure time.
 
 ## Results (measured on hardware, 550 MHz, hard-float, I/D caches on)
 
-| Toolchain    | Flags                                      | Dhrystones/s | DMIPS/MHz |
-| ------------ | ------------------------------------------ | ------------ | --------- |
-| GCC 15.3.1   | `-Ofast -ffp-contract=fast -funroll-loops` | 2,631,579    | 2.723     |
+| Toolchain           | Flags                                          | Dhrystones/s | DMIPS/MHz |
+| ------------------- | ---------------------------------------------- | ------------ | --------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,631,579    | 2.723     |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | **2,834,869**| **2.934** |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2,644,337    | 2.736     |
 
 All builds print correct final values (Int_Glob=5, Arr_2_Glob = runs+10, …)
 and each run exceeds the 2 s `Too_Small_Time` gate (measured ~4.6 s).
+
+**armclang leads Dhrystone by 7.7%** (2.934 vs 2.723 DMIPS/MHz) — the same
+direction the nano-f411 "f4-demo" benchmarks saw there (1.430 vs 1.339). ST Arm
+Clang is level with GCC (2.736). Select with
+`-DSTM32_TOOLCHAIN=<gcc|armclang|starm-clang>`; see the CoreMark twin
+(`../coremark_550m/README.md`) for the toolchain notes and the LLD/TLS details.
 
 > ⚠ **Do not use LTO for Dhrystone.** GCC `-flto` sees the whole program and
 > hoists loop-invariant work out of the timed loop, inflating the score. The
@@ -41,6 +49,11 @@ bash build.sh                      # == cmake -G Ninja .. && ninja
 # Keil AC6 (armclang)
 mkdir -p build-ac6 && cd build-ac6
 cmake -G Ninja -DSTM32_TOOLCHAIN=armclang ..
+ninja
+
+# ST Arm Clang (STM32CubeIDE's LLVM 21 + LLD)
+mkdir -p build-starm && cd build-starm
+cmake -G Ninja -DSTM32_TOOLCHAIN=starm-clang ..
 ninja
 ```
 

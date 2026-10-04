@@ -69,15 +69,19 @@ STM32H7 HAL + CMSIS pulled from the vendor example projects), `cubemx_file/`
 | `qspi_map`   | Two-stage boot + app + the probe-rs OCTOSPI flash algorithm |
 | `probers_alg`| Harness: runs the OCTOSPI algorithm's register code as firmware |
 
-Benchmark results (measured on this board, GCC 15.3.1, hard-float, I/D caches
-on) live in the project READMEs — `bare/dhry_550m`, `bare/coremark_550m` and
-their `app_qspi/` twins. The benchmark flags and the `BENCH_OPT` / `BENCH_OPT_C`
-/ `STM32_LTO` knobs are borrowed from the nano-f411 "f4-demo" benchmarks: with
-`-funroll-all-loops` CoreMark gains **+2.9%** here (2372.59 → 2440.93 it/s),
-while **LTO costs 6.2%** on this board (the F411 gained from it) and stays off.
-A helper to flash + capture the console for a benchmark run is in
-`../tools/bench_capture.sh` (pass `PORT=COM89` — the board's CH340 USB-serial
-bridge carries USART1).
+Benchmark results (measured on this board, 550 MHz, hard-float, I/D caches on)
+live in the project READMEs — `bare/dhry_550m`, `bare/coremark_550m` and their
+`app_qspi/` twins — **for all three toolchains**: gcc (default), armclang (Keil
+AC6) and starm-clang (ST Arm Clang from STM32CubeIDE), selected with
+`-DSTM32_TOOLCHAIN=...`. Highlights: **armclang `-Omax -fno-lto` is fastest on
+CoreMark** (2865.66 vs GCC's 2440.93 it/s) and on Dhrystone (2.934 vs 2.723
+DMIPS/MHz); ST Arm Clang is slower on CoreMark (2064.75) and level on Dhrystone
+(2.736). The flags and the `BENCH_OPT` / `BENCH_OPT_C` / `STM32_LTO` knobs are
+borrowed from the nano-f411 "f4-demo" benchmarks: `-funroll-all-loops` gives
+CoreMark +2.9% (2372.59 → 2440.93) while **LTO costs 6.2%** on this board (the
+F411 gained from it) and stays off. A helper to flash + capture the console for
+a benchmark run is in `../tools/bench_capture.sh` (pass `PORT=COM89` — the
+board's CH340 USB-serial bridge carries USART1).
 
 Verified on hardware:
 
@@ -112,10 +116,12 @@ CORTEX/HSEM/UART HAL modules.
 
 ## Build & flash
 
-Each project has `build.sh` (GNU arm-none-eabi-gcc, the default) and supports
-a separate `build-ac6/` dir for Keil AC6 (armclang). The build outputs the
-`.elf` + `.hex`; `ninja flash` programs the board via **probe-rs**, and
-`ninja dfu-flash` via USB DFU (fallback):
+Each project has `build.sh` (GNU arm-none-eabi-gcc, the default). The benchmark
+projects additionally support **armclang** (Keil AC6) and **starm-clang** (ST Arm
+Clang from STM32CubeIDE) via `-DSTM32_TOOLCHAIN=<gcc|armclang|starm-clang>`; use
+a separate build dir per toolchain (`build-ac6/`, `build-starm/` — the toolchain
+file is cached). The build outputs the `.elf` + `.hex`; `ninja flash` programs
+the board via **probe-rs**, and `ninja dfu-flash` via USB DFU (fallback):
 
 ```bash
 cd bare/blink_hello

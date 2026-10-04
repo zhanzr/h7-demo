@@ -39,8 +39,14 @@ set(H7_PROBE_SELECT_INCLUDED TRUE)
 # h7_tool_path() lives in tool-path.cmake (shared with stm32h7_board.cmake).
 include(${CMAKE_CURRENT_LIST_DIR}/tool-path.cmake)
 
+# The env-var hints are Windows-style paths: hand them to find_program in the
+# flavour the running cmake understands, otherwise MSYS cmake re-roots them
+# against the build dir and caches a bogus path.
+h7_tool_path("$ENV{USERPROFILE}/.cargo/bin" _PROBE_RS_HINT1)
+h7_tool_path("$ENV{CARGO_HOME}/bin" _PROBE_RS_HINT2)
+
 find_program(PROBE_RS NAMES probe-rs probe-rs.exe
-    HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin"
+    HINTS "${_PROBE_RS_HINT1}" "${_PROBE_RS_HINT2}"
     DOC "probe-rs binary (SWD flasher for ST-Link / CMSIS-DAP / J-Link)")
 if(PROBE_RS)
     h7_tool_path("${PROBE_RS}" PROBE_RS)

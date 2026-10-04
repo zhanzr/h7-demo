@@ -5,10 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-if [ -d /mingw64/bin ] && ! command -v cmake >/dev/null 2>&1; then
-    export PATH="/mingw64/bin:/usr/bin:$PATH"
+# Prefer the MSYS2 mingw64 tools when present (native Windows binaries, so the
+# build dir works from any shell - see the board README troubleshooting note).
+if [ -d /mingw64/bin ]; then
+    export PATH="/mingw64/bin:$PATH"
 fi
-
 mkdir -p build
 cd build
 cmake -G Ninja "$@" ..

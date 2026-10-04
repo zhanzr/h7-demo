@@ -47,3 +47,8 @@ e.g. [`h723-mini/bare/coremark_550m`](h723-mini/bare/coremark_550m/README.md) an
 `tools/serial_capture.py` (console capture) and `tools/bench_capture.sh` (flash
 + capture) are shared by both boards. Board-specific helper scripts (build/flash
 wrappers, openocd configs, QSPI UART download) live in each board's `tool/`.
+
+If `ninja` fails with `CreateProcess failed: The system cannot find the file
+specified.` while re-running CMake, the build dir was configured by the MSYS
+cmake and is being driven by the native mingw64 `ninja` — see the troubleshooting
+note in either board README (`build.sh` now prefers `/mingw64/bin`).

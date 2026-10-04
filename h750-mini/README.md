@@ -355,6 +355,27 @@ python ../tools/serial_capture.py COM89 115200 10
 The app prints a boot banner (`H750 Test @ ... Hz`, `CC: GCC ...`) and then
 line-per-second OV5640 FPS + clock/CPUID stats.
 
+### Troubleshooting: `CreateProcess failed` during a CMake re-run
+
+If `ninja` stops with
+
+```text
+[0/1] Re-running CMake...
+/usr/bin/cmake.exe --regenerate-during-build -S... -B...
+CreateProcess failed: The system cannot find the file specified.
+ninja: error: rebuilding 'build.ninja': subcommand failed
+```
+
+the build directory was configured by the **MSYS** cmake, which records
+`CMAKE_COMMAND=/usr/bin/cmake.exe`; the native mingw64/Windows `ninja` cannot
+spawn that POSIX path. Run `ninja` from the same MSYS shell, or delete `build/`
+and reconfigure — every project's `build.sh` now puts `/mingw64/bin` first, so
+the build dir it creates records a Windows cmake path and works from any shell.
+(Keep cmake and ninja the *same* flavour: an MSYS ninja cannot run the cmd.exe
+rules a native cmake emits - it fails with
+`/bin/sh: line 1: C:WINDOWSsystem32cmd.exe: command not found` - and a native
+ninja cannot run an MSYS cmake re-run.)
+
 ## Notes learned from the references
 
 - ST's H750B-DK QSPI drivers run the QUADSPI kernel off **D1HCLK** (not PLL2)

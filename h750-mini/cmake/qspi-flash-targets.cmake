@@ -25,9 +25,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/probe-select.cmake)
 set(QSPI_ALGO_PAGE_SIZE "0x4000" CACHE STRING
     "probe-rs page_size in the algorithm YAML (bytes per ProgramPage call)")
 
+h7_tool_path("$ENV{LOCALAPPDATA}/Programs/Python" _PY_HINT1)
+h7_tool_path("$ENV{USERPROFILE}/AppData/Local/Python" _PY_HINT2)
+
 find_program(PYTHON NAMES python python3 py
-    HINTS "$ENV{LOCALAPPDATA}/Programs/Python"
-          "$ENV{USERPROFILE}/AppData/Local/Python"
+    HINTS "${_PY_HINT1}" "${_PY_HINT2}"
     DOC "python interpreter (to build the flash algorithm YAML)")
 
 set(QSPI_ALGO_DIR "${CMAKE_CURRENT_LIST_DIR}/../tool/qspi_map/algo")

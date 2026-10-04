@@ -176,3 +176,24 @@ openocd -f interface/cmsis-dap.cfg -f target/stm32h7x.cfg \
 Then open the USART1 console at 115200 8-N-1 — the board's USB-serial bridge
 (a CH340; `COM89` on this machine, the number varies per machine). `tools/serial_capture.py`
 (or `tools/bench_capture.sh`, which also flashes) prints what arrives.
+
+### Troubleshooting: `CreateProcess failed` during a CMake re-run
+
+If `ninja` stops with
+
+```text
+[0/1] Re-running CMake...
+/usr/bin/cmake.exe --regenerate-during-build -S... -B...
+CreateProcess failed: The system cannot find the file specified.
+ninja: error: rebuilding 'build.ninja': subcommand failed
+```
+
+the build directory was configured by the **MSYS** cmake, which records
+`CMAKE_COMMAND=/usr/bin/cmake.exe`; the native mingw64/Windows `ninja` cannot
+spawn that POSIX path. Run `ninja` from the same MSYS shell, or delete `build/`
+and reconfigure — every project's `build.sh` now puts `/mingw64/bin` first, so
+the build dir it creates records a Windows cmake path and works from any shell.
+(Keep cmake and ninja the *same* flavour: an MSYS ninja cannot run the cmd.exe
+rules a native cmake emits - it fails with
+`/bin/sh: line 1: C:WINDOWSsystem32cmd.exe: command not found` - and a native
+ninja cannot run an MSYS cmake re-run.)

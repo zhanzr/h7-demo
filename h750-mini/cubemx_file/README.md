@@ -3,13 +3,31 @@
 Keil MDK / ARMCLANG V6.24 variant of the h750-mini app (OV5640 camera ->
 ST7789 240x320 SPI LCD). Board/chip-level info: see [`../README.md`](../README.md).
 
+> ⚠ **Regenerating from CubeMX (`stm32h750_prj.ioc`) has consequences — read
+> this before pressing "Generate Code".** CubeMX treats this as a standalone
+> project, so a regeneration will:
+>
+> 1. **recreate a local `Drivers/` folder** here. The HAL/CMSIS sources now live
+>    in the shared [`../../h7-common/drivers`](../../h7-common/README.md) tree
+>    that every board in the repo builds against, so the local copy would be a
+>    second, silently diverging HAL.
+> 2. **rewrite `MDK-ARM/stm32h750_prj.uvprojx`**, dropping the
+>    `../../../h7-common/drivers/...` include and file paths and pointing back
+>    at `../Drivers/...`.
+> 3. **overwrite `Core/Src/*` and `Core/Inc/*`**, losing the manual edits that
+>    [`BOOT_FIXES.md`](BOOT_FIXES.md) and `post_cubemx_restore.ps1` describe.
+>
+> The CMake builds never read `cubemx_file/Drivers`, so the firmware would keep
+> building — but the Keil project would compile a stale copy of the HAL and the
+> board would quietly drift away from the shared drivers. If you do regenerate:
+> delete the regenerated `Drivers/`, re-run `post_cubemx_restore.ps1`, and
+> re-point the `.uvprojx` paths at `../../../h7-common/drivers/`
+> (`git diff h750-mini/cubemx_file` shows exactly what changed).
+
 **The HAL/CMSIS sources used by the CMake projects are shared** (repo-level
 `h7-common/drivers`, see [`../../h7-common/README.md`](../../h7-common/README.md)):
 this folder keeps the CubeMX/Keil project itself — `Core/` (application code and
-the board's `stm32h7xx_hal_conf.h`), `MDK-ARM/` and the `.ioc`. If CubeMX is run
-again it will recreate a local `Drivers/` folder; delete it and re-apply the
-`../../../h7-common/drivers/` include/file paths in `MDK-ARM/stm32h750_prj.uvprojx`
-(see also `post_cubemx_restore.ps1`).
+the board's `stm32h7xx_hal_conf.h`), `MDK-ARM/` and the `.ioc`.
 
 ## Layout
 - `stm32h750_prj.ioc` — CubeMX source of truth (regenerate `Core/Src`,

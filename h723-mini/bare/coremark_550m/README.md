@@ -10,12 +10,26 @@ selected at configure time.
 
 ## Results (measured on hardware, 550 MHz, hard-float, I/D caches on)
 
-| Toolchain  | Flags                                      | CoreMark 1.0 | Iterations/s | Total time |
-| ---------- | ------------------------------------------ | ------------ | ------------ | ---------- |
-| GCC 15.3.1 | `-Ofast -ffp-contract=fast -funroll-loops` | 2372.59      | 2372.59      | 10.54 s    |
+| Toolchain  | Flags                                          | CoreMark 1.0 | Iterations/s | Total time |
+| ---------- | ---------------------------------------------- | ------------ | ------------ | ---------- |
+| GCC 15.3.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2440.93      | 2440.93      | 10.242 s   |
+| GCC 15.3.1 | + `-DSTM32_LTO=ON`                             | 2288.54      | 2288.54      | 10.924 s   |
 
 The build prints **`Correct operation validated.`** with the expected CRCs
-(seedcrc 0xe9f5, crcfinal 0xcc42).
+(seedcrc 0xe9f5, crcfinal 0xcc42) for both rows, and the console reports the
+flags actually used (`Compiler flags : ...`), taken from `BENCH_OPT`.
+
+### Where the flags come from
+
+The flags and the `BENCH_OPT` / `BENCH_OPT_C` / `STM32_LTO` knobs are borrowed
+from the nano-f411 **f4-demo** benchmarks, which measured `-funroll-all-loops`
+~5% faster than `-funroll-loops` on GCC CoreMark. Here it is **+2.9%**
+(2372.59 → 2440.93 it/s).
+
+**LTO is a regression on this board — keep it off.** `-DSTM32_LTO=ON` measures
+2288.54 it/s, **6.2% slower** than the non-LTO build, the opposite of the F411
+(+6.6% there), so this is board/toolchain specific rather than a general rule.
+Both configurations still validate.
 
 ## Build
 
@@ -42,8 +56,15 @@ ninja
 ninja flash        # probe-rs through the ST-Link V2 (SWD)
 ```
 
-Open the USART1 console (`COMxx` @ 115200 via the ST-Link V2 VCP). Capture at
-least ~11 s so one full (~10 s) run completes and the final
+Open the USART1 console — the board's USB-serial bridge (a CH340; `COM89` on
+this machine) @ 115200 — or let the helper do flash + capture in one step:
+
+```bash
+PORT=COM89 bash tools/bench_capture.sh \
+    h723-mini/bare/coremark_550m/build/coremark_550m.hex 25 coremark-bare
+```
+
+Capture at least ~11 s so one full (~10 s) run completes and the final
 `CoreMark 1.0 : <score> / <compiler> / Static` line is printed.
 
 ## Notes
@@ -58,4 +79,5 @@ least ~11 s so one full (~10 s) run completes and the final
   timer is `HAL_GetTick()` (1 ms SysTick).
 * Clock config: copied from the vendor `1.LED闪烁` 550 MHz example including the
   4 GB MPU region.
-* Console: USART1 (PA9/PA10, AF7) via the ST-Link V2 VCP (`COMxx` @ 115200).
+* Console: USART1 (PA9/PA10, AF7) via the board's USB-serial bridge (a CH340;
+  `COM89` here) @ 115200 — a standalone ST-Link V2 has no virtual COM port.

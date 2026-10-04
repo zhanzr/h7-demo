@@ -125,7 +125,7 @@ flash_algorithms:
           address: 0x0
 """
     out = os.path.join(HERE, f"target_{base}.yaml")
-    with open(out, "w") as f:
+    with open(out, "w", newline="\n") as f:
         f.write(yaml)
     print(f"wrote {out} (blob {len(blob)} bytes)")
     for fn in ("Init", "UnInit", "EraseSector", "EraseChip", "ProgramPage", "Verify"):

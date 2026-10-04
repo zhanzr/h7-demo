@@ -1,9 +1,11 @@
-# STM32H723ZGT6 (h723-mini) — firmware development repo
+# h7-demo — STM32H7 firmware development repo
 
-Firmware projects and tooling for the **h723-mini** board (STM32H723ZGT6,
-1 MB flash, 550 MHz Cortex-M7). Project-level docs live in each project
-folder; the board-level overview, clock tree, hardware pinout and build/flash
-instructions are in [`h723-mini/README.md`](h723-mini/README.md).
+Firmware projects and tooling for STM32H7 boards, one board per top-level folder
+— currently the **h723-mini** board (STM32H723ZGT6, 1 MB flash, 550 MHz
+Cortex-M7). The repo is named `h7-demo` rather than after a single chip because
+it is meant to host several H7 boards (`h723-mini/` is the first). Project-level
+docs live in each project folder; the board-level overview, clock tree, hardware
+pinout and build/flash instructions are in [`h723-mini/README.md`](h723-mini/README.md).
 
 ## Chip
 

@@ -40,7 +40,19 @@ add_executable(${PROJECT_NAME}.elf
     src/dhry_2.c
 )
 
-stm32h723_apply_board(${PROJECT_NAME}.elf "-Ofast -ffp-contract=fast -funroll-loops")
+# Benchmark optimization flags (interface borrowed from the nano-f411 "f4-demo"
+# benchmarks, see README.md). Dhrystone keeps -funroll-loops and must NOT use
+# -flto (it hoists work out of the timed loop and inflates the score).
+set(BENCH_OPT "-Ofast -ffp-contract=fast -funroll-loops" CACHE STRING
+    "Optimization flags for stm32h723_apply_board (e.g. -Omax for armclang)")
+set(BENCH_OPT_C "" CACHE STRING
+    "Extra C-language-only flags (e.g. armclang '-Omax -fno-lto'; not passed to ASM/link)")
+stm32h723_apply_board(${PROJECT_NAME}.elf "${BENCH_OPT}")
+if(BENCH_OPT_C)
+    separate_arguments(BENCH_OPT_C_LIST NATIVE_COMMAND "${BENCH_OPT_C}")
+    target_compile_options(${PROJECT_NAME}.elf PRIVATE
+        "$<$<COMPILE_LANGUAGE:C>:${BENCH_OPT_C_LIST}>")
+endif()
 
 target_compile_definitions(${PROJECT_NAME}.elf PRIVATE QSPI_APP=1)
 

@@ -1,8 +1,9 @@
 # h723-mini — STM32H723ZGT6 development projects
 
-Firmware projects for the h723-mini board (STM32H723ZGT6 @ 550 MHz, USART1
-console on PA9/PA10, LED on PG7 low-active, 1.54" 240x240 ST7789 LCD, ST-Link
-V2 SWD probe).
+Board folder of the **h7-demo** repo (one top-level folder per board; this is
+the first). Firmware projects for the h723-mini board (STM32H723ZGT6 @ 550 MHz,
+USART1 console on PA9/PA10, LED on PG7 low-active, 1.54" 240x240 ST7789 LCD,
+ST-Link V2 SWD probe).
 
 ![h723-mini board layout](board_images/board.jpg)
 
@@ -19,7 +20,8 @@ V2 SWD probe).
 * W25Q64 (8 MB) SPI flash on OCTOSPI1 port 1 (PF6-10, PG6).
 * Debug probe: **ST-Link V2 (SWD)** — the ULINK2 unit on hand did not work on
   this board (a local observation, not a rigid test), so the ST-Link V2 is
-  used for flashing and its VCP is the console.
+  used for flashing. The console is **not** on the ST-Link: USART1 goes to the
+  board's USB-serial bridge (a CH340, `COM89` on this machine).
 
 ## Clock tree (550 MHz)
 
@@ -68,9 +70,14 @@ STM32H7 HAL + CMSIS pulled from the vendor example projects), `cubemx_file/`
 | `probers_alg`| Harness: runs the OCTOSPI algorithm's register code as firmware |
 
 Benchmark results (measured on this board, GCC 15.3.1, hard-float, I/D caches
-on) live in the project READMEs — `bare/dhry_550m/README.md` and
-`bare/coremark_550m/README.md`. A helper to flash + capture the console for a
-benchmark run is in `../tools/bench_capture.sh`.
+on) live in the project READMEs — `bare/dhry_550m`, `bare/coremark_550m` and
+their `app_qspi/` twins. The benchmark flags and the `BENCH_OPT` / `BENCH_OPT_C`
+/ `STM32_LTO` knobs are borrowed from the nano-f411 "f4-demo" benchmarks: with
+`-funroll-all-loops` CoreMark gains **+2.9%** here (2372.59 → 2440.93 it/s),
+while **LTO costs 6.2%** on this board (the F411 gained from it) and stays off.
+A helper to flash + capture the console for a benchmark run is in
+`../tools/bench_capture.sh` (pass `PORT=COM89` — the board's CH340 USB-serial
+bridge carries USART1).
 
 Verified on hardware:
 
@@ -160,5 +167,6 @@ openocd -f interface/cmsis-dap.cfg -f target/stm32h7x.cfg \
 > core to halt — `Timeout while attaching to target under reset`. A plain attach
 > halts the core, which is all these flash targets need.
 
-Then open the USART1 console at 115200 8-N-1 (the ST-Link V2's virtual COM
-port — `COMxx`, the number varies per machine).
+Then open the USART1 console at 115200 8-N-1 — the board's USB-serial bridge
+(a CH340; `COM89` on this machine, the number varies per machine). `tools/serial_capture.py`
+(or `tools/bench_capture.sh`, which also flashes) prints what arrives.

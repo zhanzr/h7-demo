@@ -1,6 +1,6 @@
 # CoreMark 1.0.1 benchmark for the STM32H723ZGT6 (h723-mini) @ 550 MHz.
 # GCC (default) at the most aggressive optimization (-Ofast -ffp-contract=fast
-# -funroll-loops) + hard-float, optionally with -flto (STM32_LTO=ON); Keil Arm
+# -funroll-all-loops) + hard-float, optionally with -flto (STM32_LTO=ON); Keil Arm
 # Compiler 6 (armclang) is selectable via -DSTM32_TOOLCHAIN=armclang.
 # Linked with GNU ld/newlib via the existing linker script.
 #
@@ -66,7 +66,25 @@ add_executable(${PROJECT_NAME}.elf
 )
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/stm32h723_board.cmake)
-stm32h723_apply_board(${PROJECT_NAME}.elf "-Ofast -ffp-contract=fast -funroll-loops")
+
+# Benchmark optimization flags (interface borrowed from the nano-f411 "f4-demo"
+# benchmarks, see README.md): GCC at the most aggressive setting, with
+# -funroll-all-loops, which measured ~5% faster than -funroll-loops on CoreMark
+# there (282.35 vs 267.78 it/s) and ~6.6% with LTO.
+set(BENCH_OPT "-Ofast -ffp-contract=fast -funroll-all-loops" CACHE STRING
+    "Optimization flags for stm32h723_apply_board (e.g. -Omax for armclang)")
+set(BENCH_OPT_C "" CACHE STRING
+    "Extra C-language-only flags (e.g. armclang '-Omax -fno-lto'; not passed to ASM/link)")
+stm32h723_apply_board(${PROJECT_NAME}.elf "${BENCH_OPT}")
+if(BENCH_OPT_C)
+    separate_arguments(BENCH_OPT_C_LIST NATIVE_COMMAND "${BENCH_OPT_C}")
+    target_compile_options(${PROJECT_NAME}.elf PRIVATE
+        "$<$<COMPILE_LANGUAGE:C>:${BENCH_OPT_C_LIST}>")
+endif()
+
+# Report the flags actually used: CoreMark prints COMPILER_FLAGS (FLAGS_STR),
+# so the console line matches the build instead of a hardcoded string.
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_OPT}\"")
 
 target_include_directories(${PROJECT_NAME}.elf PRIVATE
     src

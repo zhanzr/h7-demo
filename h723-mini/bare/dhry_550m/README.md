@@ -20,7 +20,13 @@ and each run exceeds the 2 s `Too_Small_Time` gate (measured ~4.6 s).
 > ⚠ **Do not use LTO for Dhrystone.** GCC `-flto` sees the whole program and
 > hoists loop-invariant work out of the timed loop, inflating the score. The
 > LTO number is meaningless and is **excluded from the table above** (a known
-> GCC artifact, not a real measurement).
+> GCC artifact, not a real measurement — the nano-f411 "f4-demo" repo documents
+> the same one in `dhry_100m/LTO_on_dhrystone.md`).
+
+The flags come from the same `BENCH_OPT` / `BENCH_OPT_C` knobs borrowed from
+those f4-demo benchmarks. Dhrystone keeps `-funroll-loops`: the F411 measured no
+gain from `-funroll-all-loops` for it, and this board's numbers are unchanged by
+it (CoreMark, by contrast, gained 2.9% — see `../coremark_550m/README.md`).
 
 ## Build
 
@@ -47,9 +53,16 @@ ninja
 ninja flash        # probe-rs through the ST-Link V2 (SWD)
 ```
 
-Open the USART1 console (`COMxx` @ 115200 via the ST-Link V2 VCP). The console
-prints the Dhrystones/s and DMIPS/MHz lines every ~4.5 s; capture a few seconds
-longer than one full run to get a clean result line.
+Open the USART1 console — the board's USB-serial bridge (a CH340; `COM89` on
+this machine) @ 115200 — or let the helper flash + capture in one step:
+
+```bash
+PORT=COM89 bash tools/bench_capture.sh \
+    h723-mini/bare/dhry_550m/build/dhry_550m.hex 20 dhry-bare
+```
+
+The console prints the Dhrystones/s and DMIPS/MHz lines every ~4.5 s; capture a
+few seconds longer than one full run to get a clean result line.
 
 ## Notes
 
@@ -63,4 +76,5 @@ longer than one full run to get a clean result line.
   of the timed loop and inflates the score (a known GCC artifact).
 * Clock config: copied from the vendor `1.LED闪烁` 550 MHz example (the working
   reference build) including the 4 GB MPU region.
-* Console: USART1 (PA9/PA10, AF7) via the ST-Link V2 VCP (`COMxx` @ 115200).
+* Console: USART1 (PA9/PA10, AF7) via the board's USB-serial bridge (a CH340;
+  `COM89` here) @ 115200 — a standalone ST-Link V2 has no virtual COM port.

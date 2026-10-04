@@ -41,7 +41,7 @@ for i in range(0, len(data), 12):
     out.append("    " + ",".join("0x%02X" % b for b in data[i:i+12]) + ",")
 out.append("};")
 out.append("const uint32_t app_image_len = %d;" % len(data))
-open("../boot/src/app_image.c", "w").write("\n".join(out))
+open("../boot/src/app_image.c", "w", newline="\n").write("\n".join(out))
 print("regenerated boot/src/app_image.c (%d bytes)" % len(data))
 EOF
 

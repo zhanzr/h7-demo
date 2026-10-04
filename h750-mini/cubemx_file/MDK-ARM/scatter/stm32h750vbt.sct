@@ -1,0 +1,119 @@
+#! armclang -E --target=arm-arm-none-eabi -mcpu=cortex-m7 -xc
+; command above MUST be in first line (no comment above!)
+
+;Note: Add '-mcmse' to first line if your software model is "Secure Mode".
+;      #! armclang -E --target=arm-arm-none-eabi -mcpu=<CPU> -xc -mcmse
+
+
+/*--------------------- Stack / Heap Configuration ---------------------------
+; <h> Stack / Heap Configuration
+;   <o0> Stack Size (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o1> Heap Size (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o2> gap before heap base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o3> gap between heap top and stack base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o4> gap between stack top and rw_zi base (in Bytes) <0x0-0xFFFFFFFF:8>
+;   <o5> no init size (in Bytes) <0x0-0xFFFFFFFF:8>
+; </h>
+ *----------------------------------------------------------------------------*/
+#define __STACK_SIZE				0x00001000
+#define __HEAP_SIZE					0x00000400
+#define	__GAP_INIT					0
+#define __GAP_HEAP_TOP_STACK_BASE	0
+#define __GAP_STACK_TOP_RW_BASE		0
+#define __NO_INIT_SIZE         0
+
+#define __NS_ROM_BASE     			0x08000000
+#define __NS_ROM_SIZE     			0x00020000
+
+#define __ITCM_BASE   0x00000000
+#define __ITCM_SIZE   0x00010000
+
+#define __DTCM_BASE   0x20000000 
+#define __DTCM_SIZE   0x00020000
+
+; This region is reservered for DCMI DMA (must fit one full frame: 240*320*2 = 153600 bytes)
+#define __AXI_RAM1_BASE   0x24000000 
+#define __AXI_RAM1_SIZE   0x00040000
+
+#define __AXI_RAM2_BASE   (__AXI_RAM1_BASE + __AXI_RAM1_SIZE) 
+#define __AXI_RAM2_SIZE    (0x00080000 - __AXI_RAM1_SIZE) 
+
+#define __SRAM1_BASE   0x30000000 
+#define __SRAM1_SIZE   0x00020000
+
+#define __SRAM2_BASE   (__SRAM1_BASE + __SRAM1_SIZE)
+#define __SRAM2_SIZE   0x00020000
+
+#define __SRAM3_BASE   (__SRAM2_BASE + __SRAM2_SIZE) 
+#define __SRAM3_SIZE   0x00008000
+
+#define __SRAM4_BASE   0x38000000  
+#define __SRAM4_SIZE   0x00010000
+
+; Backup ram, Only accessed from CPU
+#define __BKRAM_BASE  0x38800000 
+#define __BKRAM_SIZE  0x00001000
+
+#define __SRAM1_2_3_BASE   __SRAM1_BASE
+#define __SRAM1_2_3_SIZE   (__SRAM1_SIZE+__SRAM2_SIZE+__SRAM3_SIZE)
+
+#define __RO_BASE         __NS_ROM_BASE
+#define __RO_SIZE         __NS_ROM_SIZE
+
+
+; Low	-> High
+;|	Initial Gap	|	Heap	|	heap_stack gap	|	Stack	|	stack_rwzi gap	|	RW_ZI region |
+#define __HEAP_BASE			(AlignExpr(__DTCM_BASE + __GAP_INIT, 8))
+#define __HEAP_TOP			(AlignExpr(__HEAP_BASE + __HEAP_SIZE, 8))
+#define __STACK_TOP			(AlignExpr(__HEAP_TOP + __GAP_HEAP_TOP_STACK_BASE + __STACK_SIZE, 8))
+#define __RWZI_BASE_1			(AlignExpr(__GAP_STACK_TOP_RW_BASE + __STACK_TOP, 8))
+
+#define __RWZI_SIZE_1			(AlignExpr(__DTCM_SIZE - __GAP_INIT - __HEAP_SIZE - __GAP_HEAP_TOP_STACK_BASE - __STACK_SIZE - __GAP_STACK_TOP_RW_BASE, 8))
+
+
+#define __RWZI_BASE_2	__AXI_RAM2_BASE
+#define __RWZI_SIZE_2	__AXI_RAM2_SIZE
+
+#define __RWZI_BASE_3	__SRAM1_2_3_BASE
+#define __RWZI_SIZE_3	__SRAM1_2_3_SIZE
+
+#define __RWZI_BASE_4	__SRAM4_BASE
+#define __RWZI_SIZE_4	__SRAM4_SIZE
+
+/*----------------------------------------------------------------------------
+  Scatter Region definition
+ *----------------------------------------------------------------------------*/
+LR_ROM __RO_BASE __RO_SIZE  {                         ; load region size_region
+    ER_ROM __RO_BASE __RO_SIZE  {                     ; load address = execution address
+        *.o (RESET, +First)
+        *(InRoot$$Sections)
+        .ANY (+RO)
+        .ANY (+XO)
+    }
+
+	ER_PSRAM __ITCM_BASE __ITCM_SIZE {
+		*.o (RAM_CODE)
+	}
+
+	ARM_LIB_HEAP  __HEAP_BASE EMPTY  __HEAP_SIZE  {   ; Reserve empty region for heap
+	}
+
+	ARM_LIB_STACK __STACK_TOP EMPTY - __STACK_SIZE {  ; Reserve empty region for stack
+	}
+
+	RW_RWZI_1 __RWZI_BASE_1 (__RWZI_SIZE_1)  {
+		.ANY (+RW +ZI)
+	}
+
+	RW_RWZI_2 __RWZI_BASE_2 (__RWZI_SIZE_2)  {
+		.ANY (+RW +ZI)
+	}
+
+	RW_RWZI_3 __RWZI_BASE_3 (__RWZI_SIZE_3)  {
+		.ANY (+RW +ZI)
+	}
+
+	RW_RWZI_4 __RWZI_BASE_4 (__RWZI_SIZE_4)  {
+		.ANY (+RW +ZI)
+	}
+}

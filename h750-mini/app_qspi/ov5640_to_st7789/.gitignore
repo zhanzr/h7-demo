@@ -1,0 +1,14 @@
+# CMake build output
+build/
+_objs/
+
+# Firmware artifacts
+*.elf
+*.hex
+*.bin
+*.map
+
+# Editor / OS
+.vscode/
+.idea/
+*.user

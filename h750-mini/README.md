@@ -30,7 +30,7 @@ project folder; board/chip-level info lives here.
 | OV5640 control | PD14 PWDN, PD0 LEDEN, PE3 GPIO_IN | camera power / flash |
 | SPI4 | PE11 NSS, PE12 SCK, PE14 MOSI | ST7789 **2.0" 240x320** RGB LCD (60 MHz, prescaler 2) |
 | LCD DC | PE15 | data/command select |
-| USART1 | PA9 TX, PA10 RX | console printf @ 115200 via on-board CH340 (`COM56`) |
+| USART1 | PA9 TX, PA10 RX | console printf @ 115200 via on-board CH340 (`COM89`) |
 | QUADSPI | PB2 CLK, PB6 NCS, PD11-PD13/PE2 IO0-3 | W25Q64 (the `app_qspi/` apps execute from here) |
 | TIM4 CH4 | PD15 | LCD backlight PWM (used by the ST7789 demos) |
 | ADC3 | - | (configured by CubeMX; not used by the apps) |
@@ -44,12 +44,14 @@ project folder; board/chip-level info lives here.
 | `board/` | shared board support: 480 MHz clock init, USART1 console, SWV helper, newlib stubs, startup file, linker script |
 | `board_images/` | board photos used by this README |
 | `cmake/` | shared CMake modules: toolchain files, the board layer, internal-flash + QSPI flash targets, custom probe-rs chip definitions |
-| `cubemx_file/` | the CubeMX/Keil project (`.ioc`, `Core/`, `MDK-ARM/`) — **also the shared HAL/CMSIS source** for all CMake projects here (see its [README](cubemx_file/README.md)) |
+| `cubemx_file/` | the CubeMX/Keil project (`.ioc`, `Core/`, `MDK-ARM/`) — see its [README](cubemx_file/README.md) |
 | `tool/` | boot/infrastructure firmware (`h750_boot`, `qspi_map`, `probers_alg`) plus the host helper scripts (`build.sh`, `flash.sh`, openocd configs, QSPI UART download) |
 
-Unlike h723-mini, this board has **no separate `drivers/` folder**: the HAL and
-CMSIS sources live inside the CubeMX project (`cubemx_file/Drivers`), because
-that project is also built by Keil MDK and must keep its layout.
+Chip-level content is **not** duplicated here: the STM32H7 HAL + CMSIS drivers,
+the generic CMake modules (toolchain files, probe discovery, objcopy targets) and
+the probe-rs chip definitions are shared by every board in the repo from
+[`../h7-common/`](../h7-common/README.md). Only board-level files stay in this
+folder — the board layer, the flash targets, the projects and this README.
 
 ## Projects
 
@@ -152,20 +154,47 @@ OK (`15/15 sectors OK -> FLASH PRESENT (full 2 MB readback OK)`). See
 
 ## Benchmarks @ 480 MHz (hard-float, caches on)
 
-Measured on hardware via the USART console (see each project's README).
+Measured on hardware via the USART console (see each project's README); every
+CoreMark run (25,000 iterations) printed `Correct operation validated.` and the
+Dhrystone runs (12,000,000 runs) printed the correct final values.
 
-| Benchmark | Toolchain | Score | DMIPS/MHz |
-| --------- | --------- | ----- | --------- |
-| Dhrystone 2.1 | GCC 15.3.1 | 2,296,651 Dhrystones/s | 2.723 |
-| Dhrystone 2.1 | armclang 20.0.0git | 2,474,227 Dhrystones/s | 2.934 |
-| Dhrystone 2.1 | GCC 15.3.1 + LTO | 4,897,959 Dhrystones/s (⚠) | 5.808 (⚠) |
-| CoreMark 1.0 | GCC 15.3.1 | 2070.56 CoreMark | — |
-| CoreMark 1.0 | armclang 20.0.0git | 2089.95 CoreMark | — |
+CoreMark 1.0 (Marks/s) — `Internal` = internal flash, `QSPI` = the same build
+executing from the W25Q64 at `0x90000000`:
 
-> ⚠ The LTO Dhrystone number is **invalid**: `-flto` lets GCC hoist
-> loop-invariant work out of the timed loop, inflating the score 2.13× while
-> still passing the final-value check (same artifact as on the F407 port).
-> Never use LTO for Dhrystone scoring.
+| Toolchain           | Flags                                          | Internal | QSPI    |
+| ------------------- | ---------------------------------------------- | -------- | ------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2127.84  | 2059.14 |
+| GCC 15.3.1          | + `-DSTM32_LTO=ON`                             | 1996.01  | 1899.84 |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | 2090.48  | 2090.48 |
+| armclang 6.24 (AC6) | `-Omax -fno-lto` (via `BENCH_OPT_C`)           | 2494.51  | 2384.81 |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 1801.93  | 1801.80 |
+
+Dhrystone 2.1 (Dhrystones/s, DMIPS/MHz) — every row uses
+`-Ofast -ffp-contract=fast -funroll-loops` (starm-clang: `-funroll-all-loops`,
+which armclang rejects):
+
+| Toolchain           | Internal flash | W25Q64 (QSPI) | DMIPS/MHz |
+| ------------------- | -------------- | ------------- | --------- |
+| GCC 15.3.1          | 2,296,650.75   | 2,307,692.25  | 2.723     |
+| armclang 6.24 (AC6) | 2,474,226.75   | 2,474,226.75  | 2.934     |
+| ST Arm Clang 21.1.1 | 2,307,692.25   | 2,307,248.50  | 2.736     |
+
+Highlights: armclang `-Omax -fno-lto` is the fastest CoreMark configuration
+(+17 % over the gcc default internally, +16 % from QSPI); armclang leads
+Dhrystone by +7.7 % over gcc; starm-clang is −15 % on CoreMark but level on
+Dhrystone. QSPI matches internal flash for the armclang default and starm-clang
+rows. The flags come from the nano-f411 "f4-demo" benchmarks (`BENCH_OPT` /
+`BENCH_OPT_C` / `STM32_LTO`), and `FLAGS_STR` is generated from them, so the
+console prints the flags each build really used.
+
+> ⚠ **Never use LTO for Dhrystone scoring.** `-flto` lets GCC hoist
+> loop-invariant work out of the timed loop, inflating the score 2.13× (to
+> 4,897,959 Dhrystones/s / 5.808 DMIPS/MHz on the earlier measurement) while
+> still passing the final-value check — the same artifact as on the F407 port.
+> On CoreMark LTO is not an artifact but a plain regression: gcc +
+> `-DSTM32_LTO=ON` is **~6.2 % slower** than the gcc default (1996.01 vs
+> 2127.84 internally, 1899.84 vs 2059.14 from QSPI), so LTO stays **off** by
+> default.
 
 Reference (F407, 168 MHz, same flags): GCC 351,370 D/s / 1.190 DMIPS/MHz,
 armclang 393,391 D/s / 1.333 DMIPS/MHz.
@@ -175,14 +204,18 @@ armclang 393,391 D/s / 1.333 DMIPS/MHz.
 Re-verified after re-flashing both QSPI images with the hardware-QUADSPI flash
 algorithm (`target_w25q64_qspi.yaml`):
 
-| Benchmark | Internal flash | W25Q64 (QSPI) | Delta |
-| --------- | -------------- | ------------- | ----- |
-| Dhrystone (Dhrystones/s) | 2,296,650.75 | 2,296,650.75 | 0.0 % |
-| CoreMark 1.0 | 2070.565 | 2064.58 | ~0.29 % |
+| Benchmark (gcc default)  | Internal flash | W25Q64 (QSPI) | Delta   |
+| ------------------------ | -------------- | ------------- | ------- |
+| Dhrystone (Dhrystones/s) | 2,296,650.75   | 2,307,692.25  | +0.48 % |
+| CoreMark 1.0             | 2127.84        | 2059.14       | −3.2 %  |
 
-Both run from QSPI at essentially full speed: the hot loops are cache-resident,
-so the memory-mapped QSPI fetch latency is hidden. The Dhrystone equality is
-exact (both report 2,296,650.75); CoreMark is ~0.3 % slower from QSPI.
+Dhrystone from QSPI is 0.48 % *faster* — i.e. no penalty, just run-to-run
+noise; the hot loop fits the 16 KB I-cache. CoreMark's ~62 KB image exceeds the
+I-cache and the gcc default build is 3.2 % slower from the W25Q64, while
+armclang's default build (2090.48) and starm-clang (1801.93 → 1801.80) match
+internal flash to <0.01 %. After warm-up the hot benchmark loop is
+cache-resident, so memory-mapped 1-4-4 QSPI fetches @ 100 MHz cost almost
+nothing.
 
 ## External QSPI flashing (W25Q64)
 
@@ -230,22 +263,46 @@ The 16 KB-page write is byte-perfect (`h743_verify` reported
 
 ## Toolchains
 
-- CMake default: **`arm-none-eabi-gcc` 15.3.1** (GNU toolchain 13.3.Rel1 dir),
-  CMake 3.30.0, Ninja. Every project has its own `build.sh`.
-- **armclang** (Keil MDK ARMCLANG V6.24) for the CMake projects via
-  `-DSTM32_TOOLCHAIN=armclang`
-  (`cmake/armclang-keil-toolchain.cmake`; use a separate build dir such as
-  `build-ac6/` — the toolchain file is cached), and the Keil uVision project
-  under `cubemx_file/MDK-ARM/`.
-- Flashing: **`probe-rs`** (0.32.0) + ULINK2 over SWD
-  (`$HOME/.cargo/bin/probe-rs.exe`), wrapped by the `ninja flash` target and
-  `tool/flash.sh`.
+The CMake projects build with any of three toolchains, selected at configure
+time with `-DSTM32_TOOLCHAIN=<gcc|armclang|starm-clang>`; all three build the
+benchmarks (see [Benchmarks](#benchmarks--480-mhz-hard-float-caches-on)):
+
+- **gcc** (default): **`arm-none-eabi-gcc` 15.3.1** (GNU toolchain 13.3.Rel1
+  dir), CMake 3.30.0, Ninja. Every project has its own `build.sh`.
+- **armclang** (Keil MDK ARMCLANG V6.24) via
+  `cmake/armclang-keil-toolchain.cmake`; the Keil uVision project under
+  `cubemx_file/MDK-ARM/` stays as-is.
+- **starm-clang** (ST Arm Clang 21.1.1 — STM32CubeIDE's LLVM 21, links with LLD
+  against its own newlib sysroot) via `cmake/starm-clang-toolchain.cmake`. Its
+  newlib keeps `errno` in TLS, so `board/syscalls.c` provides the AEABI
+  `__aeabi_read_tp()` shim (unused by the gcc/armclang links).
+- Use a **separate build dir per toolchain** (`build/`, `build-ac6/`,
+  `build-starm/`): `CMAKE_TOOLCHAIN_FILE` is cached after the first configure.
+  The benchmark projects additionally take the `BENCH_OPT` / `BENCH_OPT_C` /
+  `STM32_LTO` knobs (`bare/coremark_480m/README.md`).
+
+```sh
+mkdir -p build-starm && cd build-starm
+cmake -G Ninja -DSTM32_TOOLCHAIN=starm-clang .. && ninja
+```
+
+- **Shared sources**: the chip-level drivers (HAL + CMSIS) and the generic CMake
+  modules come from the repo-level [`../h7-common/`](../h7-common/) tree
+  (`drivers/`, `cmake/`; the generic modules in `h750-mini/cmake/` are thin
+  forwarders to it). Board-level files stay in `h750-mini/` — `board/` (clock
+  init, USART1 console, startup, linker script, newlib stubs),
+  `cmake/stm32h750_board.cmake`, the flash targets and the probe-rs chip
+  definitions.
+- Flashing: **`probe-rs`** (0.32.0, `$HOME/.cargo/bin/probe-rs.exe`) via the
+  `ninja flash` target and `tool/flash.sh`. It **auto-detects the attached
+  probe** (the ULINK2 enumerates as CMSIS-DAP); `ninja flash-stlink` /
+  `flash-dap` / `flash-jlink` force a specific one.
 - Alternative flasher: `openocd` (xPack OpenOCD 0.12.0+dev, the
   `xpack-dev-tools.openocd-xpack` WinGet package). Board config:
   `tool/openocd_ulink2.cfg` (CMSIS-DAP, serial `V0010M9E`) and
   `tool/openocd_qspi_h750.cfg` for the QUADSPI.
-- Serial capture: pyserial 3.5 on `COM56` @ 115200, via the shared
-  `../tools/serial_capture.py`.
+- Serial capture: pyserial 3.5 on the on-board CH340 (`COM89` here) @ 115200,
+  via the shared `../tools/serial_capture.py`.
 
 ## Flasher benchmark (ULINK2 / SWD)
 
@@ -292,7 +349,7 @@ D:/Keil_v5/UV4/UV4.exe -j0 -b h750-mini/cubemx_file/MDK-ARM/stm32h750_prj.uvproj
 Serial console:
 
 ```sh
-python ../tools/serial_capture.py COM56 115200 10
+python ../tools/serial_capture.py COM89 115200 10
 ```
 
 The app prints a boot banner (`H750 Test @ ... Hz`, `CC: GCC ...`) and then

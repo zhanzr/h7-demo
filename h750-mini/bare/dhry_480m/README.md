@@ -5,21 +5,29 @@ the h750-mini board (STM32H750VBT6) clocked at **480 MHz** (HSE 25 MHz,
 PLL1 M=5 N=192 P=2 → SYSCLK, HCLK 240 MHz, APB1/2/3/4 120 MHz, VOS scale 0,
 flash latency 4 — clock tree copied verbatim from the working
 `ov5640_to_st7789` project). Compiler-agnostic: the same sources build with
-either **GNU arm-none-eabi-gcc** or **armclang** (AC6 / the LLVM embedded
-toolchain), selected at configure time.
+**GNU arm-none-eabi-gcc** (default), **armclang** (Keil AC6) or **starm-clang**
+(ST Arm Clang), selected at configure time with `-DSTM32_TOOLCHAIN=`.
 
 ## Results (measured on hardware, 480 MHz, hard-float, I/D caches on)
 
-Normal toolchain comparison (no LTO):
+Normal toolchain comparison (no LTO), internal flash:
 
-| Toolchain                | Flags                                      | Dhrystones/s | DMIPS/MHz |
-| ------------------------ | ------------------------------------------ | ------------ | --------- |
-| GCC 15.3.1               | `-Ofast -ffp-contract=fast -funroll-loops` | 2,296,651    | 2.723     |
-| armclang 20.0.0git       | `-Ofast -ffp-contract=fast -funroll-loops` | 2,474,227    | 2.934     |
+| Toolchain           | Flags                                          | Dhrystones/s | DMIPS/MHz |
+| ------------------- | ---------------------------------------------- | ------------ | --------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,296,650.75 | 2.723     |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,474,226.75 | 2.934     |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2,307,692.25 | 2.736     |
 
-All builds print correct final values (Int_Glob=5, Arr_2_Glob = runs+10, …)
-and each run exceeds the 2 s `Too_Small_Time` gate (measured ~5.2 s GCC /
-~4.9 s armclang).
+All builds print correct final values (Int_Glob=5, Arr_2_Glob = runs+10, …) and
+each run exceeds the 2 s `Too_Small_Time` gate (measured ~5.2 s GCC / ~4.9 s
+armclang).
+
+**armclang leads by +7.7 %** over plain GCC here (2,474,226.75 vs 2,296,650.75
+Dhrystones/s, 0.404 µs/run vs 0.435 µs/run). starm-clang is level with GCC
+(+0.5 %, 2,307,692.25) — the opposite of its CoreMark result
+(`../coremark_480m/README.md`). starm-clang's newlib keeps `errno` in TLS, so
+`board/syscalls.c` provides the AEABI `__aeabi_read_tp()` shim (unused by the
+gcc/armclang links).
 
 > ⚠ **Do not use LTO for Dhrystone.** GCC `-flto` sees the whole program and
 > hoists loop-invariant work out of the timed loop, inflating the score
@@ -30,7 +38,8 @@ and each run exceeds the 2 s `Too_Small_Time` gate (measured ~5.2 s GCC /
 > `D:\stm32f407_manual_prj\dhry_168m\LTO_on_dhrystone.md`. The `build-gcc-lto`
 > directory exists only as reproducible evidence of the artifact.
 
-armclang is ~7.7 % faster than plain GCC here (0.404 µs/run vs 0.435 µs/run).
+On CoreMark the LTO effect goes the other way — it is a plain **~6.2 %
+regression**, not an artifact — see `../coremark_480m/README.md`.
 
 ### vs. the F407 reference (@ 168 MHz, same flags, GCC)
 
@@ -58,6 +67,10 @@ mkdir -p build-ac6 && cd build-ac6
 cmake -G Ninja -DSTM32_TOOLCHAIN=armclang ..
 ninja
 
+# ST Arm Clang (STM32CubeIDE's LLVM 21 + LLD)
+mkdir -p build-starm && cd build-starm
+cmake -G Ninja -DSTM32_TOOLCHAIN=starm-clang .. && ninja
+
 # GNU gcc + LTO (kept only as reproducible evidence of the artifact)
 mkdir -p build-gcc-lto && cd build-gcc-lto
 cmake -G Ninja -DSTM32_LTO=ON ..
@@ -69,14 +82,16 @@ ninja
 
 ## Flash & measure
 
-Flash + auto-capture the USART console (COM56, 115200) with the shared tool:
-
 ```bash
-bash tools/bench_capture.sh h750-mini/dhry_480m/build/dhry_480m.hex 16 dhry-gcc
+ninja flash        # probe-rs auto-detects the attached probe
+                   # (flash-stlink / flash-dap / flash-jlink force one)
+
+# console capture (CH340, COM89 here) — run this from h750-mini/
+python ../tools/serial_capture.py COM89 115200 20
 ```
 
 The console prints the Dhrystones/s and DMIPS/MHz lines every ~5 s; capture a
-few seconds longer than one full run to get a clean result line.
+few seconds longer than one full run (~5 s) to get a clean result line.
 
 ## Notes
 
@@ -90,5 +105,5 @@ few seconds longer than one full run to get a clean result line.
 * Clock config: copied from `ov5640_to_st7789` (the working reference build)
   including the `__HAL_FLASH_SET_LATENCY(FLASH_LATENCY_4)` + `__DSB()` /
   `__ISB()` barrier and the 4 GB MPU region.
-* Console: USART1 (PA9/PA10, AF7) via the on-board CH340 (COM56). The ULINK2
+* Console: USART1 (PA9/PA10, AF7) via the on-board CH340 (COM89). The ULINK2
   cannot capture SWO, so UART is the console.

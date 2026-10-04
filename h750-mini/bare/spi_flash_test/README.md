@@ -3,7 +3,7 @@
 W25Q64 (8 Mbyte) QUADSPI flash benchmark + XIP demo for the h750-mini board
 (STM32H750VBT6 @ 480 MHz, W25Q64 on QUADSPI bank 1).
 
-Measures, printed over USART1 @ 115200 (COM56), re-run every second:
+Measures, printed over USART1 @ 115200 (COM89), re-run every second:
 
 - **erase** (line-mode independent, always 1-1-1): 4K sector / 32K block / 64K block
 - **write** (page program): 1-1-1 (0x02) vs 1-1-4 (0x32)  (W25Q64 has **no**

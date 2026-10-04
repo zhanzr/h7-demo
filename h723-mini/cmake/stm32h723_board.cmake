@@ -12,10 +12,12 @@
 
 set(H723_ROOT
     "${CMAKE_CURRENT_LIST_DIR}/.." CACHE PATH
-    "Root of the h723-mini board tree (contains board/, cmake/, drivers/)")
+    "Root of the h723-mini board tree (contains board/ and cmake/)")
 
 set(BOARD_DIR ${H723_ROOT}/board)
-set(H723_DRV ${H723_ROOT}/drivers)
+# Shared H7 chip-level drivers (HAL + CMSIS) live in the repo-level h7-common/
+# tree, shared by every board; only board-level support stays under h723-mini/.
+set(H723_DRV "${H723_ROOT}/../h7-common/drivers")
 set(H723_HAL ${H723_DRV}/STM32H7xx_HAL_Driver)
 set(H723_CMSIS ${H723_DRV}/CMSIS)
 set(H723_CMSDEV ${H723_CMSIS}/Device/ST/STM32H7xx)
@@ -29,7 +31,7 @@ set(H723_LINKER_SCRIPT "${BOARD_DIR}/stm32h723zg.ld" CACHE FILEPATH
 set(H723_SYSTEM_SOURCE "${BOARD_DIR}/system_stm32h7xx.c" CACHE FILEPATH
     "System init source for the STM32H723 build")
 
-# h723_tool_path(): keeps tool/lib paths in the flavour the shell that cmake
+# h7_tool_path(): keeps tool/lib paths in the flavour the shell that cmake
 # generates for the build understands (MSYS cmake -> sh, mingw cmake -> cmd).
 include(${CMAKE_CURRENT_LIST_DIR}/tool-path.cmake)
 
@@ -80,9 +82,9 @@ function(stm32h723_apply_board TGT OPT)
 
     # armclang has no bundled libc headers: point it at the GNU newlib include
     # dir so <stdio.h>/<string.h>/... resolve to the same newlib we link.
-    # h723_tool_path keeps the path in the flavour the generated shell needs.
+    # h7_tool_path keeps the path in the flavour the generated shell needs.
     if(STM32_ARMCLANG)
-        h723_tool_path("${ARM_GCC_ROOT}/arm-none-eabi/include" _ARMCLANG_NEWLIB_INC)
+        h7_tool_path("${ARM_GCC_ROOT}/arm-none-eabi/include" _ARMCLANG_NEWLIB_INC)
         target_include_directories(${TGT} SYSTEM PRIVATE
             "${_ARMCLANG_NEWLIB_INC}"
         )
@@ -101,8 +103,8 @@ function(stm32h723_apply_board TGT OPT)
         # starm-clang links with LLD against its own newlib sysroot. Give it the
         # Cortex-M7 (hard-float, fpv5-d16) multilib explicitly and group the
         # compiler builtins with libc/libm, mirroring the nano-f411 setup.
-        # h723_tool_path keeps the path in the flavour the generated shell needs.
-        h723_tool_path("${STARM_ROOT}/lib/clang-runtimes/newlib/arm-none-eabi/armv7m_hard_fpv5_d16_exn_rtti_unaligned_size/lib" _STARM_LIBDIR)
+        # h7_tool_path keeps the path in the flavour the generated shell needs.
+        h7_tool_path("${STARM_ROOT}/lib/clang-runtimes/newlib/arm-none-eabi/armv7m_hard_fpv5_d16_exn_rtti_unaligned_size/lib" _STARM_LIBDIR)
         if(NOT EXISTS "${_STARM_LIBDIR}/libc.a")
             message(FATAL_ERROR "starm-clang Cortex-M7 multilib not found at ${_STARM_LIBDIR} - check STARM_ROOT")
         endif()

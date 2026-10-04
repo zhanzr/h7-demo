@@ -21,10 +21,11 @@ project(ov5640_to_st7789 C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# --- CubeMX-generated sources (shared with the Keil project) -----------------
+# --- CubeMX-generated sources + the shared H7 drivers ------------------------
 set(H750_ROOT   ${CMAKE_CURRENT_SOURCE_DIR}/../../cubemx_file)
 set(H750_CORE   ${H750_ROOT}/Core)
-set(H750_DRV    ${H750_ROOT}/Drivers)
+# HAL/CMSIS are shared by every board in the repo (h7-common/drivers).
+set(H750_DRV    ${CMAKE_CURRENT_SOURCE_DIR}/../../../h7-common/drivers)
 set(H750_HAL    ${H750_DRV}/STM32H7xx_HAL_Driver)
 set(H750_CMSIS  ${H750_DRV}/CMSIS)
 set(H750_CMSDEV ${H750_CMSIS}/Device/ST/STM32H7xx)

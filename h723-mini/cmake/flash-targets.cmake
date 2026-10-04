@@ -38,9 +38,9 @@ if(PROBE_RS)
             set(_tgt flash-${_fam})
         endif()
 
-        h723_probe_ready(${_fam} _ready)
+        h7_probe_ready(${_fam} _ready)
         if(NOT _ready)
-            h723_probe_hint(${_fam} _hint)
+            h7_probe_hint(${_fam} _hint)
             add_custom_target(${_tgt}
                 COMMAND ${CMAKE_COMMAND} -E echo "${_hint}"
                 COMMAND ${CMAKE_COMMAND} -E false
@@ -48,7 +48,7 @@ if(PROBE_RS)
             continue()
         endif()
 
-        h723_probe_args(${_fam} _pargs)
+        h7_probe_args(${_fam} _pargs)
         if(_pargs)
             set(_how "${_fam} probe")
         else()
@@ -65,7 +65,7 @@ if(PROBE_RS)
             USES_TERMINAL)
     endforeach()
 
-    h723_add_ulink_stub(flash)
+    h7_add_ulink_stub(flash)
 else()
     add_custom_target(flash
         COMMAND ${CMAKE_COMMAND} -E echo "probe-rs not found - install it with cargo install probe-rs-tools, or pass -DPROBE_RS=/path/to/probe-rs")
@@ -77,7 +77,7 @@ find_program(STM32_PROG NAMES STM32_Programmer_CLI STM32_Programmer_CLI.exe
     HINTS "D:/Program Files/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin"
     DOC "STM32CubeProgrammer CLI (USB DFU flasher)")
 if(STM32_PROG)
-    h723_tool_path("${STM32_PROG}" STM32_PROG)
+    h7_tool_path("${STM32_PROG}" STM32_PROG)
 endif()
 
 if(STM32_PROG)

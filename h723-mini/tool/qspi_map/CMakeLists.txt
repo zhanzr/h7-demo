@@ -126,9 +126,9 @@ if(PROBE_RS)
             set(_tgt flash_boot-${_fam})
         endif()
 
-        h723_probe_ready(${_fam} _ready)
+        h7_probe_ready(${_fam} _ready)
         if(NOT _ready)
-            h723_probe_hint(${_fam} _hint)
+            h7_probe_hint(${_fam} _hint)
             add_custom_target(${_tgt}
                 COMMAND ${CMAKE_COMMAND} -E echo "${_hint}"
                 COMMAND ${CMAKE_COMMAND} -E false
@@ -136,7 +136,7 @@ if(PROBE_RS)
             continue()
         endif()
 
-        h723_probe_args(${_fam} _pargs)
+        h7_probe_args(${_fam} _pargs)
         if(_pargs)
             set(_how "${_fam} probe")
         else()
@@ -153,7 +153,7 @@ if(PROBE_RS)
             USES_TERMINAL)
     endforeach()
 
-    h723_add_ulink_stub(flash_boot)
+    h7_add_ulink_stub(flash_boot)
 
     # `ninja flash` keeps working as before, and mirrors every probe variant.
     add_custom_target(flash DEPENDS flash_boot)

@@ -39,7 +39,7 @@ find_program(PYTHON NAMES python python3 py
           "$ENV{USERPROFILE}/AppData/Local/Python"
     DOC "python interpreter (to build the flash algorithm YAML)")
 if(PYTHON)
-    h723_tool_path("${PYTHON}" PYTHON)
+    h7_tool_path("${PYTHON}" PYTHON)
 endif()
 
 set(QSPI_ALGO_DIR "${CMAKE_CURRENT_LIST_DIR}/../tool/qspi_map/algo")
@@ -78,9 +78,9 @@ if(PROBE_RS AND PYTHON)
             set(_tgt flash-${_fam})
         endif()
 
-        h723_probe_ready(${_fam} _ready)
+        h7_probe_ready(${_fam} _ready)
         if(NOT _ready)
-            h723_probe_hint(${_fam} _hint)
+            h7_probe_hint(${_fam} _hint)
             add_custom_target(${_tgt}
                 COMMAND ${CMAKE_COMMAND} -E echo "${_hint}"
                 COMMAND ${CMAKE_COMMAND} -E false
@@ -88,7 +88,7 @@ if(PROBE_RS AND PYTHON)
             continue()
         endif()
 
-        h723_probe_args(${_fam} _pargs)
+        h7_probe_args(${_fam} _pargs)
         if(_pargs)
             set(_how "${_fam} probe")
         else()
@@ -115,7 +115,7 @@ if(PROBE_RS AND PYTHON)
             USES_TERMINAL)
     endforeach()
 
-    h723_add_ulink_stub(flash)
+    h7_add_ulink_stub(flash)
 else()
     add_custom_target(flash
         COMMAND ${CMAKE_COMMAND} -E echo

@@ -18,7 +18,7 @@ UART/SysTick/startup all come from the shared board layer (`../board`, `../cmake
 An **FPS number is always shown at the bottom of the screen**, drawn
 transparently (glyph pixels only). The bottom 24 rows are a reserved status
 band so the counter survives the animation clears. Progress lines (phase
-names, LED on/off) are also printed over USART1 (CH340 → `COM56` @ 115200).
+names, LED on/off) are also printed over USART1 (CH340 → `COM89` @ 115200).
 
 On boot the **backlight brightness feature** is exercised (`lcd_bl_bright_set`):
 full brightness, then stepped down — the PWM duty on PD15 is what changes.

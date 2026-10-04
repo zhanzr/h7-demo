@@ -1,22 +1,33 @@
 # Dhrystone 2.1 @ 480 MHz — pure-QSPI variant (dhry_480m)
 
-Same Dhrystone 2.1 sources and flags as `dhry_480m` (12,000,000 runs,
-`-Ofast -ffp-contract=fast -funroll-loops`, GCC), but the **code is linked at
-`0x90000000` and executes out of the on-board W25Q64** (pure-QSPI code space),
-booted by `h750_boot`. See `../QSPI_APP_GUIDE.md` for how a `_qspi` app is
-built.
+Same Dhrystone 2.1 sources and benchmark flags as `bare/dhry_480m`
+(12,000,000 runs), but the **code is linked at `0x90000000` and executes out of
+the on-board W25Q64** (pure-QSPI code space), booted by `h750_boot`. See
+`../QSPI_APP_GUIDE.md` for how a `_qspi` app is built.
 
-## Result (measured on hardware, 480 MHz, GCC 15.3.1, I/D caches on)
+## Results (measured from the W25Q64, 480 MHz, hard-float, I/D caches on)
 
-| Build            | Code space          | Dhrystones/s | DMIPS/MHz |
-| ---------------- | ------------------- | ------------ | --------- |
-| dhry_480m        | internal flash      | 2,296,651    | 2.723     |
-| **dhry_480m** | **W25Q64 (QSPI)**  | **2,296,651**| **2.723** |
+| Toolchain           | Flags                                          | Dhrystones/s | DMIPS/MHz |
+| ------------------- | ---------------------------------------------- | ------------ | --------- |
+| GCC 15.3.1          | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,307,692.25 | 2.736     |
+| armclang 6.24 (AC6) | `-Ofast -ffp-contract=fast -funroll-loops`     | 2,474,226.75 | 2.934     |
+| ST Arm Clang 21.1.1 | `-Ofast -ffp-contract=fast -funroll-all-loops` | 2,307,248.50 | 2.736     |
 
-**Identical score.** The Dhrystone hot loop fits comfortably in the M7's
-16 KB I-cache, so after the first pass the code runs from cache and the QSPI
-read latency (memory-mapped 1-4-4 @ ~100 MHz) is completely hidden. There is
-**no performance penalty for running Dhrystone from QSPI**.
+All runs printed the correct final values; every toolchain works here too
+(one build dir per toolchain). QSPI vs internal flash
+(`../../bare/dhry_480m/README.md`):
+
+| Configuration    | Internal flash | W25Q64 (QSPI) | Delta   |
+| ---------------- | -------------- | ------------- | ------- |
+| gcc default      | 2,296,650.75   | 2,307,692.25  | +0.48 % |
+| armclang default | 2,474,226.75   | 2,474,226.75  | 0.0 %   |
+| starm-clang      | 2,307,692.25   | 2,307,248.50  | −0.02 % |
+
+**No measurable penalty for running Dhrystone from QSPI.** The hot loop fits
+comfortably in the M7's 16 KB I-cache, so after the first pass the code runs
+from cache and the memory-mapped 1-4-4 QSPI read latency (~100 MHz) is hidden;
+the gcc row is even 0.48 % *higher* from QSPI (run-to-run noise) and
+starm-clang 0.02 % lower.
 
 The console also proves the boot path: `h750_boot` checks the image and jumps,
 then Dhrystone prints its banner with "(from QSPI flash)".
@@ -24,18 +35,24 @@ then Dhrystone prints its banner with "(from QSPI flash)".
 ## Build & flash
 
 ```bash
-bash build.sh                 # -> build/dhry_480m.hex @ 0x90000000
-# write the .hex into the W25Q64 (probe-rs W25Q64 algorithm; no --verify):
-python ../qspi_map/algo/build_algo.py
-probe-rs download --probe c251:2722:V0010M9E \
-  --chip-description-path ../qspi_map/algo/target_w25q64.yaml \
-  --chip STM32H750VB-W25Q64 --protocol swd \
-  --binary-format hex --non-interactive --disable-progressbars \
-  build/dhry_480m.hex
-probe-rs reset --probe c251:2722:V0010M9E --chip STM32H750VB --protocol swd
+# GNU arm-none-eabi-gcc (default); one build dir per toolchain
+mkdir -p build && cd build
+cmake -G Ninja -DSTM32_TOOLCHAIN=gcc .. && ninja
+ninja flash                   # QUADSPI algorithm writes the W25Q64
+
+# ST Arm Clang instead (armclang works the same way):
+mkdir -p ../build-starm && cd ../build-starm
+cmake -G Ninja -DSTM32_TOOLCHAIN=starm-clang .. && ninja && ninja flash
 ```
 
-Then capture COM56 @ 115200 (a run takes ~5.2 s).
+`ninja flash` needs `h750-mini/tool/h750_boot` in internal flash first — the
+bootloader validates the image at `0x90000000` and jumps to it. probe-rs
+auto-detects the attached probe (`flash-stlink` / `flash-dap` / `flash-jlink`
+force one). Console capture (CH340, `COM89` here) from `h750-mini/`:
+
+```bash
+python ../tools/serial_capture.py COM89 115200 20     # a run takes ~5.2 s
+```
 
 ## Notes
 

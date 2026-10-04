@@ -18,13 +18,15 @@ if(POLICY CMP0123)
     cmake_policy(SET CMP0123 NEW)
 endif()
 
-set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default) or armclang (Keil AC6)")
-set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang)
+set(STM32_TOOLCHAIN "gcc" CACHE STRING "C compiler: gcc (arm-none-eabi, default), armclang (Keil AC6) or starm-clang (ST Arm Clang)")
+set_property(CACHE STM32_TOOLCHAIN PROPERTY STRINGS gcc armclang starm-clang)
 option(STM32_LTO "Enable -flto with the GCC toolchain" OFF)
 
 if(NOT CMAKE_TOOLCHAIN_FILE)
     if(STM32_TOOLCHAIN STREQUAL "armclang")
         set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/armclang-keil-toolchain.cmake")
+    elseif(STM32_TOOLCHAIN STREQUAL "starm-clang")
+        set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/starm-clang-toolchain.cmake")
     else()
         set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/arm-none-eabi-toolchain.cmake")
     endif()
@@ -57,7 +59,21 @@ add_executable(${PROJECT_NAME}.elf
     src/dhry_1.c
     src/dhry_2.c
 )
-stm32h750_apply_board(${PROJECT_NAME}.elf "-Ofast -ffp-contract=fast -funroll-loops")
+# Benchmark flags, mirroring the h723-mini benchmark projects so both
+# boards' results are directly comparable:
+#   BENCH_OPT   - every translation unit (compile + link)
+#   BENCH_OPT_C - C only (e.g. armclang -Omax, which it rejects for ASM)
+set(BENCH_OPT "-Ofast -ffp-contract=fast -funroll-loops" CACHE STRING "Optimisation flags for the whole build")
+set(BENCH_OPT_C "" CACHE STRING "Extra C-only optimisation flags (e.g. armclang -Omax -fno-lto)")
+stm32h750_apply_board(${PROJECT_NAME}.elf "${BENCH_OPT} ${BENCH_OPT_C}")
+
+# Report the flags actually used: CoreMark prints COMPILER_FLAGS (FLAGS_STR),
+# so the console line matches the build instead of a hardcoded string.
+set(BENCH_FLAGS_STR "${BENCH_OPT}")
+if(BENCH_OPT_C)
+    string(APPEND BENCH_FLAGS_STR " ${BENCH_OPT_C}")
+endif()
+target_compile_definitions(${PROJECT_NAME}.elf PRIVATE "FLAGS_STR=\"${BENCH_FLAGS_STR}\"")
 
 # QSPI app: make board.c's SystemClock_Config()/MPU a no-op so the identical
 # main() can call Board_Init() without breaking the bootloader's clocks/MPU.

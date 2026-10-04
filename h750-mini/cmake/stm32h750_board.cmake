@@ -12,11 +12,14 @@
 
 set(H750_ROOT
     "${CMAKE_CURRENT_LIST_DIR}/../cubemx_file" CACHE PATH
-    "Root of the CubeMX/Keil H750 project (contains Drivers/)")
+    "Root of the CubeMX/Keil H750 project (Core/, MDK-ARM/, .ioc)")
 
 set(BOARD_DIR ${CMAKE_CURRENT_LIST_DIR}/../board)
-set(H750_HAL ${H750_ROOT}/Drivers/STM32H7xx_HAL_Driver)
-set(H750_CMSIS ${H750_ROOT}/Drivers/CMSIS)
+# Shared H7 chip-level drivers (HAL + CMSIS) live in the repo-level h7-common/
+# tree, shared by every board; the CubeMX project no longer carries Drivers/.
+set(H750_DRV "${CMAKE_CURRENT_LIST_DIR}/../../h7-common/drivers")
+set(H750_HAL ${H750_DRV}/STM32H7xx_HAL_Driver)
+set(H750_CMSIS ${H750_DRV}/CMSIS)
 set(H750_CMSDEV ${H750_CMSIS}/Device/ST/STM32H7xx)
 
 # Linker script. h743_verify overrides this with a script that declares
@@ -32,16 +35,18 @@ set(H750_LINKER_SCRIPT "${BOARD_DIR}/stm32h750vbt.ld" CACHE FILEPATH
 set(H750_SYSTEM_SOURCE "${BOARD_DIR}/system_stm32h7xx.c" CACHE FILEPATH
     "System init source for the STM32H750 build")
 
-# h723_tool_path(): keeps tool/lib paths in the flavour the shell that cmake
+# h7_tool_path(): keeps tool/lib paths in the flavour the shell that cmake
 # generates for the build understands (MSYS cmake -> sh, mingw cmake -> cmd).
 include(${CMAKE_CURRENT_LIST_DIR}/tool-path.cmake)
 
 function(stm32h750_apply_board TGT OPT)
     separate_arguments(OPT_LIST NATIVE_COMMAND "${OPT}")
 
-    # GCC-only warning switches; keep clang (armclang) clean.
+    # GCC-only warning switches; keep the clang-based toolchains clean.
     if(STM32_ARMCLANG)
         set(_WARN_FLAGS -Wall)
+    elseif(STM32_STARM_CLANG)
+        set(_WARN_FLAGS -Wall -Wno-unused-command-line-argument)
     else()
         set(_WARN_FLAGS
             -Wall
@@ -82,7 +87,7 @@ function(stm32h750_apply_board TGT OPT)
     # armclang has no bundled libc headers: point it at the GNU newlib include
     # dir so <stdio.h>/<string.h>/... resolve to the same newlib we link.
     if(STM32_ARMCLANG)
-        h723_tool_path("${ARM_GCC_ROOT}/arm-none-eabi/include" _ARMCLANG_NEWLIB_INC)
+        h7_tool_path("${ARM_GCC_ROOT}/arm-none-eabi/include" _ARMCLANG_NEWLIB_INC)
         target_include_directories(${TGT} SYSTEM PRIVATE
             "${_ARMCLANG_NEWLIB_INC}"
         )
@@ -97,20 +102,50 @@ function(stm32h750_apply_board TGT OPT)
         -ffunction-sections -fdata-sections ${_WARN_FLAGS}
     )
 
+    if(STM32_STARM_CLANG)
+        # starm-clang links with LLD against its own newlib sysroot. Give it the
+        # Cortex-M7 (hard-float, fpv5-d16) multilib explicitly and group the
+        # compiler builtins with libc/libm, as on the other boards.
+        set(_STARM_LIBDIR "${STARM_ROOT}/lib/clang-runtimes/newlib/arm-none-eabi/armv7m_hard_fpv5_d16_exn_rtti_unaligned_size/lib")
+        if(NOT EXISTS "${_STARM_LIBDIR}/libc.a")
+            message(FATAL_ERROR "starm-clang Cortex-M7 multilib not found at ${_STARM_LIBDIR} - check STARM_ROOT")
+        endif()
+        set(_LDFLAGS "-mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 ${OPT}")
+        set(_LDFLAGS "${_LDFLAGS} -nostartfiles -Xlinker --gc-sections")
+        set(_LDFLAGS "${_LDFLAGS} -Xlinker -Map=${PROJECT_NAME}.map")
+        set(_LDFLAGS "${_LDFLAGS} -Xlinker -T -Xlinker ${H750_LINKER_SCRIPT}")
+        set(_LDFLAGS "${_LDFLAGS} -L${_STARM_LIBDIR}")
+        set(_LDFLAGS "${_LDFLAGS} -Xlinker --start-group")
+        set(_LDFLAGS "${_LDFLAGS} ${_STARM_LIBDIR}/libclang_rt.builtins.a -lc -lm")
+        set(_LDFLAGS "${_LDFLAGS} -Xlinker --end-group")
+    else()
+        set(_LDFLAGS "-mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 ${OPT} -Wl,--gc-sections -nostartfiles -Wl,-Map=${PROJECT_NAME}.map -T ${H750_LINKER_SCRIPT} -lc -lm")
+    endif()
+
     set_target_properties(${TGT} PROPERTIES
-        LINK_FLAGS "-mcpu=cortex-m7 -mthumb -mfloat-abi=hard -mfpu=fpv5-d16 ${OPT} -Wl,--gc-sections -nostartfiles -Wl,-Map=${PROJECT_NAME}.map -T ${H750_LINKER_SCRIPT} -lc -lm"
+        LINK_FLAGS "${_LDFLAGS}"
     )
 
     # newlib/libgcc's thumb/v7e-m+fp multilib objects are built with
     # -fshort-enums and lack .note.GNU-stack, so a normal link spews ~60
     # benign warnings. Silence them (the sizes match the ARM EABI defaults
-    # our objects use, so this is noise, not an ABI error):
-    set_property(TARGET ${TGT} APPEND_STRING PROPERTY
-        LINK_FLAGS " -Wl,--no-enum-size-warning -Wl,--no-wchar-size-warning -Wl,--no-warn-execstack")
+    # our objects use, so this is noise, not an ABI error). LLD (starm-clang)
+    # does not know these GNU-ld-only switches, so skip them there.
+    if(NOT STM32_STARM_CLANG)
+        set_property(TARGET ${TGT} APPEND_STRING PROPERTY
+            LINK_FLAGS " -Wl,--no-enum-size-warning -Wl,--no-wchar-size-warning -Wl,--no-warn-execstack")
+    endif()
 
-    # Link-time optimization (GCC only). armclang -flto emits LLVM bitcode
-    # (.llvm.lto) that GNU ld cannot consume, so STM32_LTO is ignored there.
-    if(STM32_LTO AND NOT STM32_ARMCLANG)
+    # Link-time optimization. armclang -flto emits LLVM bitcode (.llvm.lto) that
+    # GNU ld cannot consume, so STM32_LTO is ignored there; starm-clang links
+    # with LLD, which consumes bitcode natively (-flto=full).
+    if(STM32_LTO AND STM32_STARM_CLANG)
+        target_compile_options(${TGT} PRIVATE -flto=full -ffat-lto-objects)
+        set_property(TARGET ${TGT} APPEND_STRING PROPERTY LINK_FLAGS " -flto=full")
+        set_target_properties(${TGT} PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+        set_source_files_properties(${BOARD_DIR}/syscalls.c PROPERTIES
+            COMPILE_OPTIONS "-fno-lto")
+    elseif(STM32_LTO AND NOT STM32_ARMCLANG)
         target_compile_options(${TGT} PRIVATE -flto)
         set_property(TARGET ${TGT} APPEND_STRING PROPERTY LINK_FLAGS " -flto")
         # GCC LTO loses the newlib syscall-stub definitions (_fstat/_isatty/

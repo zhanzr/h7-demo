@@ -33,7 +33,9 @@ void uart_printf(const char *fmt, ...);
 #include <stdint.h>
 #include <stddef.h>
 
+#ifndef FLAGS_STR
 #define FLAGS_STR "-Ofast -funroll-loops"
+#endif
 #ifndef ITERATIONS
 #define ITERATIONS 25000
 #endif

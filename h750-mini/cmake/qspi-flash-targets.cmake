@@ -2,7 +2,7 @@
 #
 # Unlike flash-targets.cmake (which programs INTERNAL flash), this flashes the
 # app .hex into the on-board W25Q64 at 0x90000000 using the probe-rs QUADSPI
-# flash algorithm in ../qspi_map/algo/ (target_w25q64_qspi.yaml).
+# flash algorithm in ../tool/qspi_map/algo/ (target_w25q64_qspi.yaml).
 #
 # The algorithm driver is auto-detected: if target_w25q64_qspi.yaml is missing
 # or older than flash_w25q64_qspi.c, `build_algo.py` is run first to regenerate
@@ -10,22 +10,20 @@
 #
 # Target:
 #   ninja flash - build the .hex, (re)build the algorithm if needed, then write
-#                 it to the W25Q64 via probe-rs (ULINK2 CMSIS-DAP, SWD)
+#                 it to the W25Q64 via probe-rs (probe auto-detected, SWD)
 #
 # Prerequisite (one-time per board): h750_boot must be in internal flash.
+# The probe is resolved the same way as in flash-targets.cmake - see the shared
+# ../../h7-common/cmake/probe-select.cmake (ninja flash-stlink/flash-dap/...).
 #
 # Overrides:
-#   -DPROBE_RS=/path/to/probe-rs    -DULINK2_PROBE=c251:2722:V0010M9E
-#   -DPYTHON=/path/to/python        -DQSPI_ALGO_PAGE_SIZE=0x4000
+#   -DPROBE_RS=/path/to/probe-rs    -DPYTHON=/path/to/python
+#   -DQSPI_ALGO_PAGE_SIZE=0x4000    -DDEBUG_PROBE=VID:PID[:SERIAL]
 
-set(ULINK2_PROBE "c251:2722:V0010M9E" CACHE STRING
-    "probe-rs --probe selector (VID:PID[:Serial]) of the Keil ULINK2")
+include(${CMAKE_CURRENT_LIST_DIR}/probe-select.cmake)
+
 set(QSPI_ALGO_PAGE_SIZE "0x4000" CACHE STRING
     "probe-rs page_size in the algorithm YAML (bytes per ProgramPage call)")
-
-find_program(PROBE_RS NAMES probe-rs probe-rs.exe
-    HINTS "$ENV{USERPROFILE}/.cargo/bin" "$ENV{CARGO_HOME}/bin"
-    DOC "probe-rs binary (preferred flasher)")
 
 find_program(PYTHON NAMES python python3 py
     HINTS "$ENV{LOCALAPPDATA}/Programs/Python"
@@ -46,30 +44,47 @@ if(PROBE_RS AND PYTHON)
         DEPENDS "${QSPI_ALGO_SRC}"
         COMMENT "Generating QUADSPI flash algorithm ${QSPI_ALGO_YAML} ...")
 
-    # ANSI color for the bootloader warning (harmless if the terminal is dumb).
-    string(ASCII 27 ESC)
-    set(WARN "${ESC}[1;33m")     # bold yellow
-    set(NORM "${ESC}[0m")
+    foreach(_fam auto stlink dap jlink)
+        if(_fam STREQUAL "auto")
+            set(_tgt flash)
+        else()
+            set(_tgt flash-${_fam})
+        endif()
 
-    add_custom_target(flash
-        COMMAND ${CMAKE_COMMAND} -E echo ""      # blank line (separate from ninja's status line)
-        COMMAND ${CMAKE_COMMAND} -E echo "${WARN}Make sure h750_boot is in internal flash first (one-time per board)!${NORM}"
-        COMMAND ${CMAKE_COMMAND} -E echo
-                "Writing ${PROJECT_NAME}.hex to the W25Q64 via the QUADSPI algorithm ..."
-        COMMAND "${PROBE_RS}" download --probe "${ULINK2_PROBE}"
-                    --chip-description-path "${QSPI_ALGO_YAML}"
-                    --chip "STM32H750VB-W25Q64-w25q64_qspi" --protocol swd
-                    --connect-under-reset
-                    --binary-format hex --non-interactive --disable-progressbars
-                    "${BIN_HEX}"
-        COMMAND "${PROBE_RS}" reset --probe "${ULINK2_PROBE}"
-                    --chip "STM32H750VB" --protocol swd
-                    --connect-under-reset --non-interactive
-        COMMAND ${CMAKE_COMMAND} -E echo ""
-        COMMAND ${CMAKE_COMMAND} -E echo "Flashing done; board reset - booting the new app."
-        DEPENDS hex "${QSPI_ALGO_YAML}"
-        COMMENT "Flashing ${PROJECT_NAME}.hex to the W25Q64 (probe-rs QUADSPI algorithm)"
-        USES_TERMINAL)
+        h7_probe_ready(${_fam} _ready)
+        if(NOT _ready)
+            h7_probe_hint(${_fam} _hint)
+            add_custom_target(${_tgt}
+                COMMAND ${CMAKE_COMMAND} -E echo "${_hint}"
+                COMMAND ${CMAKE_COMMAND} -E false
+                COMMENT "${_tgt}: no ${_fam} probe")
+            continue()
+        endif()
+
+        h7_probe_args(${_fam} _pargs)
+        if(_pargs)
+            set(_how "${_fam} probe")
+        else()
+            set(_how "probe-rs auto-detect")
+        endif()
+
+        add_custom_target(${_tgt}
+            COMMAND ${CMAKE_COMMAND} -E echo ""
+            COMMAND ${CMAKE_COMMAND} -E echo "Make sure h750_boot is in internal flash first - one-time per board"
+            COMMAND ${CMAKE_COMMAND} -E echo "Writing ${PROJECT_NAME}.hex to the W25Q64 via the QUADSPI algorithm ..."
+            COMMAND "${PROBE_RS}" download ${_pargs}
+                        --chip-description-path "${QSPI_ALGO_YAML}"
+                        --chip "STM32H750VB-W25Q64-w25q64_qspi" --protocol swd
+                        --binary-format hex --non-interactive --disable-progressbars
+                        "${BIN_HEX}"
+            COMMAND "${PROBE_RS}" reset ${_pargs}
+                        --chip "STM32H750VB" --protocol swd --non-interactive
+            COMMAND ${CMAKE_COMMAND} -E echo ""
+            COMMAND ${CMAKE_COMMAND} -E echo "Flashing done - board reset, booting the new app."
+            DEPENDS hex "${QSPI_ALGO_YAML}"
+            COMMENT "Flashing ${PROJECT_NAME}.hex to the W25Q64 (probe-rs QUADSPI algorithm) [${_how}]"
+            USES_TERMINAL)
+    endforeach()
 else()
     add_custom_target(flash
         COMMAND ${CMAKE_COMMAND} -E echo

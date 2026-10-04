@@ -1,7 +1,7 @@
 # blink_hello — minimal STM32H750VBT6 (h750-mini) template @ 480 MHz
 
 Tiny project template: blinks the on-board **PA8 LED (LD3)** and prints a
-line over USART1 (CH340 → `COM56` @ 115200) on **every toggle** (~1 Hz).
+line over USART1 (CH340 → `COM89` @ 115200) on **every toggle** (~1 Hz).
 Everything else — 480 MHz clock init, MPU, I/D caches, UART console, SysTick,
 newlib stubs, startup + linker script — comes from the **shared board layer**
 (`../board`) and toolchain helpers (`../cmake`), so a new project only needs

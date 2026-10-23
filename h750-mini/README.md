@@ -35,6 +35,69 @@ project folder; board/chip-level info lives here.
 | TIM4 CH4 | PD15 | LCD backlight PWM (used by the ST7789 demos) |
 | ADC3 | - | (configured by CubeMX; not used by the apps) |
 
+## Hardware extension connection
+
+The two 46-pin expansion headers. `BAT` is the VBAT backup-battery pin
+(routable to ADC3_IN17 for the internal-ADC VBAT sampling — see
+`bare/blink_hello`), `RST` the global reset, `JTCK`/`JTMS` the SWD
+clock/data (PA14/PA13), and `BOOT0` the boot-mode strap.
+
+### J1A
+
+| Name | Num | Num | Name |
+|------|-----|-----|------|
+| PA15 | 1 | 2 | PC10 |
+| PC11 | 3 | 4 | PC12 |
+| PD0 | 5 | 6 | PD1 |
+| PD2 | 7 | 8 | PD3 |
+| PD4 | 9 | 10 | PD5 |
+| PD6 | 11 | 12 | PD7 |
+| PB3 | 13 | 14 | PB4 |
+| PB5 | 15 | 16 | PB6 |
+| PB7 | 17 | 18 | PB8 |
+| PB9 | 19 | 20 | PE0 |
+| PE1 | 21 | 22 | PE2 |
+| PE3 | 23 | 24 | PE4 |
+| PE5 | 25 | 26 | PE6 |
+| BAT | 27 | 28 | PC13 |
+| PC0 | 29 | 30 | PC1 |
+| PC2 | 31 | 32 | PC3 |
+| 3.3 | 33 | 34 | BOOT0 |
+| PA0 | 35 | 36 | PA1 |
+| PA2 | 37 | 38 | PA3 |
+| PA4 | 39 | 40 | PC4 |
+| PA6 | 41 | 42 | PC5 |
+| PA5 | 43 | 44 | GND |
+| PA7 | 45 | 46 | PB0 |
+
+### J1B
+
+| Name | Num | Num | Name |
+|------|-----|-----|------|
+| 5V | 1 | 2 | 5V |
+| 3V3 | 3 | 4 | 3V3 |
+| 3V3 | 5 | 6 | GND |
+| 3V3 | 7 | 8 | GND |
+| PA11 | 9 | 10 | PA12 |
+| PA10 | 11 | 12 | PA9 |
+| PA8 | 13 | 14 | PC9 |
+| PC8 | 15 | 16 | PC7 |
+| PC6 | 17 | 18 | PD15 |
+| PD14 | 19 | 20 | PD13 |
+| PD12 | 21 | 22 | PD11 |
+| PD10 | 23 | 24 | PD9 |
+| PD8 | 25 | 26 | PB15 |
+| PB14 | 27 | 28 | PB13 |
+| PB12 | 29 | 30 | PB11 |
+| PB10 | 31 | 32 | PE15 |
+| PE14 | 33 | 34 | PE13 |
+| PE12 | 35 | 36 | PE11 |
+| PE10 | 37 | 38 | PE9 |
+| PE8 | 39 | 40 | RST |
+| PE7 | 41 | 42 | JTCK |
+| PB2 | 43 | 44 | JTMS |
+| PB1 | 45 | 46 | GND |
+
 ## Folder layout
 
 | Folder | What is in it |

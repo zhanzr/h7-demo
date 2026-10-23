@@ -50,5 +50,13 @@ add_executable(${PROJECT_NAME}.elf
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/stm32h750_board.cmake)
 stm32h750_apply_board(${PROJECT_NAME}.elf "-O2")
 
+# Internal ADC channels (ADC3: die temperature / VREFINT / VBAT). The shared
+# board layer does not compile the ADC HAL, so pull it in per project
+# (HAL_ADC_MODULE_ENABLED is already on in board/stm32h7xx_hal_conf.h).
+target_sources(${PROJECT_NAME}.elf PRIVATE
+    ${H750_HAL}/Src/stm32h7xx_hal_adc.c
+    ${H750_HAL}/Src/stm32h7xx_hal_adc_ex.c
+)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/objcopy-targets.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/flash-targets.cmake)

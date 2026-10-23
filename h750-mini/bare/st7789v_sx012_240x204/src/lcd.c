@@ -347,9 +347,11 @@ void LCD_DisplayChar(uint16_t x, uint16_t y, uint8_t c)
 {
     uint16_t index;
     uint8_t  disChar;
-    /* Must hold the LARGEST font's pixels (8x16 = 128); the 6x12 font
-     * only fills the first 72. */
-    uint16_t Buff[8 * 16];
+    /* Must hold the LARGEST font's pixels: ASCII_Font32 is 16x32 = 512
+     * (the 6x12 font only fills the first 72). With the smaller 8x16-sized
+     * buffer the Font32 banner overflowed the stack frame and hard-faulted
+     * right after the blue clear (display stuck all-blue). */
+    uint16_t Buff[16 * 32];
 
     if ((s_AsciiFont == NULL) || (c < 0x20U) || (c > 0x7EU))
     {

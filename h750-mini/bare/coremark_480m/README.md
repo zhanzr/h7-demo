@@ -56,7 +56,13 @@ build this benchmark; all three results are in the table above.
   LLVM 21 + LLD with its own newlib sysroot; slowest on CoreMark (1801.93 it/s,
   **−15 %**). Its newlib keeps `errno` in TLS, so `board/syscalls.c` provides
   the AEABI `__aeabi_read_tp()` shim (unused by the gcc/armclang links, dropped
-  by `--gc-sections`).
+  by `--gc-sections`). starm + `-DSTM32_LTO=ON` was also measured: 1730.58
+  it/s, a further −4 % — like GCC LTO here, LTO is a regression, not a win.
+
+Checked and not better (so nobody re-tests them): GCC with
+`-falign-loops=32 -falign-functions=32` added to the default flags measures
+2122.42 it/s — no gain over the 2127.84 default (I-cache line is 32 B, but
+the hot loops already land aligned).
 
 ## Build
 

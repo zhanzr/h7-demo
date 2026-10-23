@@ -29,6 +29,11 @@ Dhrystones/s, 0.404 µs/run vs 0.435 µs/run). starm-clang is level with GCC
 `board/syscalls.c` provides the AEABI `__aeabi_read_tp()` shim (unused by the
 gcc/armclang links).
 
+**armclang `-Omax -fno-lto` gives nothing over `-Ofast` for Dhrystone** —
+measured 2,474,226.75 Dhrystones/s, identical to the `-Ofast` row (the same
+outcome as the nano-f411 Dhrystone; the timed loop is already fully
+optimized). Keep the default `-Ofast -ffp-contract=fast -funroll-loops`.
+
 > ⚠ **Do not use LTO for Dhrystone.** GCC `-flto` sees the whole program and
 > hoists loop-invariant work out of the timed loop, inflating the score
 > **2.13× to 4,897,959 Dhrystones/s (5.808 DMIPS/MHz)** while still passing
